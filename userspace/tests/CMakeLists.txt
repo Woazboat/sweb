@@ -17,14 +17,14 @@ file(GLOB userspace_tests_SOURCES ${SOURCE_WILDCARDS})
 foreach(curFile ${userspace_tests_SOURCES})
   get_filename_component(curName ${curFile} NAME_WE)
 
-  add_executable(${curName}.sweb ${curFile})
-  target_link_libraries(${curName}.sweb "-Wl,-Ttext=0x8000000 -Wl,--build-id=none -Wl,-whole-archive"  userspace_libc ${APPEND_LD_ARGUMENTS})
+  add_executable(${curName} ${curFile})
+  target_link_libraries(${curName} "-Wl,-Ttext=0x8000000 -Wl,--build-id=none -Wl,-whole-archive"  userspace_libc ${APPEND_LD_ARGUMENTS})
 
-  ADD_DEBUG_INFO(${curName}.sweb)
+  ADD_DEBUG_INFO(${curName})
 
   # Remember the userspace program names for dependency checking in the root CMakeLists
-  set(ENV{USERSPACE_NAMES} "$ENV{USERSPACE_NAMES};${curName}.sweb")
-  set(ENV{USERSPACE_NAMES_EXE2MINIX} "$ENV{USERSPACE_NAMES_EXE2MINIX};${EXECUTABLE_OUTPUT_PATH}/${curName}.sweb;${curName}.sweb")
+  set(ENV{USERSPACE_NAMES} "$ENV{USERSPACE_NAMES};${curName}")
+  set(ENV{USERSPACE_NAMES_EXE2MINIX} "$ENV{USERSPACE_NAMES_EXE2MINIX};${EXECUTABLE_OUTPUT_PATH}/${curName};${curName}")
 endforeach(curFile)
 
 file(GLOB userspace_tests_PROJECTS */)
@@ -34,12 +34,12 @@ file(GLOB curProject_SOURCES ${curProject}/*.c)
 
   if(curProject_SOURCES)
     get_filename_component(exename ${curProject} NAME)
-    add_executable(${exename}.sweb ${curProject_SOURCES})
-    target_link_libraries(${exename}.sweb "-Wl,-whole-archive" userspace_libc ${APPEND_LD_ARGUMENTS})
+    add_executable(${exename} ${curProject_SOURCES})
+    target_link_libraries(${exename} "-Wl,-whole-archive" userspace_libc ${APPEND_LD_ARGUMENTS})
 
-    ADD_DEBUG_INFO(${curName}.sweb)
+    ADD_DEBUG_INFO(${curName})
 
-    set(ENV{USERSPACE_NAMES} "$ENV{USERSPACE_NAMES};${exename}.sweb")
-    set(ENV{USERSPACE_NAMES_EXE2MINIX} "$ENV{USERSPACE_NAMES_EXE2MINIX};${EXECUTABLE_OUTPUT_PATH}/${exename}.sweb;${exename}.sweb")
+    set(ENV{USERSPACE_NAMES} "$ENV{USERSPACE_NAMES};${exename}")
+    set(ENV{USERSPACE_NAMES_EXE2MINIX} "$ENV{USERSPACE_NAMES_EXE2MINIX};${EXECUTABLE_OUTPUT_PATH}/${exename};${exename}")
   endif(curProject_SOURCES)
 endforeach(curProject)
