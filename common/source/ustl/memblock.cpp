@@ -93,7 +93,7 @@ void memblock::reserve (size_type newSize, bool bExact)
 	newSize = alignedSize;
     pointer newBlock = (pointer) krealloc (oldBlock, newSize);
     if (!newBlock)
-      kpanict((uint8_t*)"bad_alloc");
+      kpanict("bad_alloc");
     if (!oldBlock & (cdata() != nullptr))
 	copy_n (cdata(), min (size() + 1, newSize), newBlock);
     link (newBlock, size());
@@ -107,7 +107,7 @@ void memblock::shrink_to_fit (void)
 	return;
     pointer newBlock = (pointer) krealloc (begin(), size());
     if (!newBlock && size())
-      kpanict((uint8_t*)"bad_alloc");
+      kpanict("bad_alloc");
     _capacity = size();
     memlink::relink (newBlock, size());
 }

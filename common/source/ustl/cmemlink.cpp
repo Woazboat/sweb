@@ -19,7 +19,7 @@ namespace ustl {
 void cmemlink::link (const void* p, size_type n)
 {
     if (!p && n)
-      kpanict((uint8_t*)"bad_alloc");
+      kpanict("bad_alloc");
       //throw bad_alloc (n);
     unlink();
     relink (p, n);
