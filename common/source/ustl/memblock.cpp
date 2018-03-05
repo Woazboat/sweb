@@ -89,6 +89,8 @@ void memblock::reserve (size_type newSize, bool bExact)
 {
     if ((newSize += minimumFreeCapacity()) <= _capacity)
   return;
+    extern void checkKMMDeadlock();
+    checkKMMDeadlock();
     pointer oldBlock (is_linked() ? nullptr : data());
     const size_t alignedSize (NextPow2 (newSize));
     if (!bExact)
