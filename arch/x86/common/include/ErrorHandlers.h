@@ -29,23 +29,37 @@ const char* errors[32] = {
   "#XF: SIMD Floting Point Error"
 };
 
-#define ERROR_HANDLER(x) extern "C" void arch_errorHandler_##x();
+#define ERROR_HANDLER_DECL(x) extern "C" void arch_errorHandler_##x();
+#define IRQ_HANDLER_DECL(x) extern "C" void arch_irqHandler_##x();
 
-ERROR_HANDLER(0)
-ERROR_HANDLER(4)
-ERROR_HANDLER(5)
-ERROR_HANDLER(6)
-ERROR_HANDLER(7)
-ERROR_HANDLER(8)
-ERROR_HANDLER(9)
-ERROR_HANDLER(10)
-ERROR_HANDLER(11)
-ERROR_HANDLER(12)
-ERROR_HANDLER(13)
-ERROR_HANDLER(16)
-ERROR_HANDLER(17)
-ERROR_HANDLER(18)
-ERROR_HANDLER(19)
+ERROR_HANDLER_DECL(0)
+ERROR_HANDLER_DECL(4)
+ERROR_HANDLER_DECL(5)
+ERROR_HANDLER_DECL(6)
+ERROR_HANDLER_DECL(7)
+ERROR_HANDLER_DECL(8)
+ERROR_HANDLER_DECL(9)
+ERROR_HANDLER_DECL(10)
+ERROR_HANDLER_DECL(11)
+ERROR_HANDLER_DECL(12)
+ERROR_HANDLER_DECL(13)
+ERROR_HANDLER_DECL(16)
+ERROR_HANDLER_DECL(17)
+ERROR_HANDLER_DECL(18)
+ERROR_HANDLER_DECL(19)
+extern "C" void arch_pageFaultHandler();
+
+IRQ_HANDLER_DECL(0)
+IRQ_HANDLER_DECL(1)
+IRQ_HANDLER_DECL(3)
+IRQ_HANDLER_DECL(4)
+IRQ_HANDLER_DECL(6)
+IRQ_HANDLER_DECL(9)
+IRQ_HANDLER_DECL(11)
+IRQ_HANDLER_DECL(14)
+IRQ_HANDLER_DECL(15)
+IRQ_HANDLER_DECL(65)
+extern "C" void arch_syscallHandler();
 
 extern ArchThreadRegisters *currentThreadRegisters;
 extern Thread *currentThread;
@@ -79,8 +93,7 @@ InterruptHandlers InterruptUtils::handlers[] = {
   IRQHANDLER(14)
   IRQHANDLER(15)
   {65, &arch_irqHandler_65},
-  {128, &arch_syscallHandler},
-  {0,0}
+  {128, &arch_syscallHandler}
 };
 
 #endif

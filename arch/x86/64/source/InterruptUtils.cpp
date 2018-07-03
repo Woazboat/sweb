@@ -29,6 +29,9 @@
 #include "paging-definitions.h"
 #include "PageFaultHandler.h"
 
+#include "ErrorHandlers.h" // error handler definitions and irq forwarding definitions
+
+
 #define LO_WORD(x) (((uint32)(x)) & 0x0000FFFFULL)
 #define HI_WORD(x) ((((uint32)(x)) >> 16) & 0x0000FFFFULL)
 #define LO_DWORD(x) (((uint64)(x)) & 0x00000000FFFFFFFFULL)
@@ -37,29 +40,6 @@
 #define TYPE_TRAP_GATE      15 // trap gate, i.e. IF flag is *not* cleared
 #define TYPE_INTERRUPT_GATE 14 // interrupt gate, i.e. IF flag *is* cleared
 
-#define DPL_KERNEL_SPACE     0 // kernelspace's protection level
-#define DPL_USER_SPACE       3 // userspaces's protection level
-
-#define SYSCALL_INTERRUPT 0x80 // number of syscall interrupt
-
-
-// --- Pagefault error flags.
-//     PF because/in/caused by/...
-
-#define FLAG_PF_PRESENT     0x01 // =0: pt/page not present
-                                 // =1: of protection violation
-
-#define FLAG_PF_RDWR        0x02 // =0: read access
-                                 // =1: write access
-
-#define FLAG_PF_USER        0x04 // =0: supervisormode (CPL < 3)
-                                 // =1: usermode (CPL == 3)
-
-#define FLAG_PF_RSVD        0x08 // =0: not a reserved bit
-                                 // =1: a reserved bit
-
-#define FLAG_PF_INSTR_FETCH 0x10 // =0: not an instruction fetch
-                                 // =1: an instruction fetch (need PAE for that)
 
 struct GateDesc
 {
@@ -85,44 +65,63 @@ uint64 InterruptUtils::pf_address_counter;
 
 void InterruptUtils::initialise()
 {
-  uint32 num_handlers = 0;
-  for (uint32 i = 0; handlers[i].offset != 0; ++i)
-    num_handlers = handlers[i].number;
-  ++num_handlers;
-  // allocate some memory for our handlers
-  GateDesc *interrupt_gates = new GateDesc[num_handlers];
+  size_t num_int_handlers = sizeof(handlers)/sizeof(handlers[0]);
+  size_t max_int_num = 0;
+  for(size_t i = 0; i < num_int_handlers; ++i)
+  {
+    debug(A_INTERRUPTS, "Interrupt handler, num: %x, offset: %p\n", handlers[i].number, handlers[i].offset);
+    max_int_num = Max(max_int_num, handlers[i].number);
+  }
+  size_t num_idt_entries = max_int_num + 1;
+
+  GateDesc *idt = new GateDesc[num_idt_entries];
+
   size_t dummy_handler_sled_size = (((size_t) arch_dummyHandlerMiddle) - (size_t) arch_dummyHandler);
   assert((dummy_handler_sled_size % 128) == 0 && "cannot handle weird padding in the kernel binary");
   dummy_handler_sled_size /= 128;
 
-  uint32 j = 0;
-  for (uint32 i = 0; i < num_handlers; ++i)
-  {
-    while (handlers[j].number < i && handlers[j].offset != 0)
-      ++j;
-    interrupt_gates[i].offset_ld_lw = LO_WORD(LO_DWORD((handlers[j].number == i && handlers[j].offset != 0) ? (size_t)handlers[j].offset : (((size_t)arch_dummyHandler)+i*dummy_handler_sled_size)));
-    interrupt_gates[i].offset_ld_hw = HI_WORD(LO_DWORD((handlers[j].number == i && handlers[j].offset != 0) ? (size_t)handlers[j].offset : (((size_t)arch_dummyHandler)+i*dummy_handler_sled_size)));
-    interrupt_gates[i].offset_hd = HI_DWORD((handlers[j].number == i && handlers[j].offset != 0) ? (size_t)handlers[j].offset : (((size_t)arch_dummyHandler)+i*dummy_handler_sled_size));
-    interrupt_gates[i].ist = 0; // we could provide up to 7 different indices here - 0 means legacy stack switching
-    interrupt_gates[i].present = 1;
-    interrupt_gates[i].segment_selector = KERNEL_CS;
-    interrupt_gates[i].type = TYPE_INTERRUPT_GATE;
-    interrupt_gates[i].zero_1 = 0;
-    interrupt_gates[i].zeros = 0;
-    interrupt_gates[i].reserved = 0;
-    interrupt_gates[i].dpl = ((i == SYSCALL_INTERRUPT && handlers[j].number == i) ? DPL_USER_SPACE : DPL_KERNEL_SPACE);
-    debug(A_INTERRUPTS,
-        "%x -- offset = %p, offset_ld_lw = %x, offset_ld_hw = %x, offset_hd = %x, ist = %x, present = %x, segment_selector = %x, type = %x, dpl = %x\n", i, handlers[i].offset,
-        interrupt_gates[i].offset_ld_lw, interrupt_gates[i].offset_ld_hw,
-        interrupt_gates[i].offset_hd, interrupt_gates[i].ist,
-        interrupt_gates[i].present, interrupt_gates[i].segment_selector,
-        interrupt_gates[i].type, interrupt_gates[i].dpl);
-  }
-  IDTR idtr;
 
-  idtr.base = (pointer) interrupt_gates;
-  idtr.limit = sizeof(GateDesc) * num_handlers - 1;
+  for(size_t i = 0; i < num_idt_entries; ++i)
+  {
+    idt[i].offset_ld_lw     = LO_WORD(LO_DWORD(((size_t)arch_dummyHandler) + i*dummy_handler_sled_size));
+    idt[i].offset_ld_hw     = HI_WORD(LO_DWORD(((size_t)arch_dummyHandler) + i*dummy_handler_sled_size));
+    idt[i].offset_hd        =         HI_DWORD(((size_t)arch_dummyHandler) + i*dummy_handler_sled_size);
+    idt[i].ist              = 0; // we could provide up to 7 different indices here - 0 means legacy stack switching
+    idt[i].present          = 1;
+    idt[i].segment_selector = KERNEL_CS;
+    idt[i].type             = TYPE_INTERRUPT_GATE;
+    idt[i].zero_1           = 0;
+    idt[i].zeros            = 0;
+    idt[i].reserved         = 0;
+    idt[i].dpl              = DPL_KERNEL_SPACE;
+  }
+
+  for(size_t i = 0; i < num_int_handlers; ++i)
+  {
+    uint32 handler_num = handlers[i].number;
+    idt[handler_num].offset_ld_lw = LO_WORD(LO_DWORD((size_t)handlers[i].offset));
+    idt[handler_num].offset_ld_hw = HI_WORD(LO_DWORD((size_t)handlers[i].offset));
+    idt[handler_num].offset_hd    =         HI_DWORD((size_t)handlers[i].offset);
+    idt[handler_num].dpl = (handler_num == SYSCALL_INTERRUPT ? DPL_USER_SPACE : DPL_KERNEL_SPACE);
+  }
+
+  for(size_t i = 0; i < num_idt_entries; ++i)
+  {
+    debug(A_INTERRUPTS,
+          "%4zx -- offset = %zx, offset_ld_lw = %x, offset_ld_hw = %x, offset_hd = %x, ist = %x, present = %u, segment_selector = %x, type = %x, dpl = %x\n",
+          i,
+          (size_t)idt[i].offset_ld_lw | ((size_t)idt[i].offset_ld_hw << 16) | ((size_t)idt[i].offset_hd << 48),
+          idt[i].offset_ld_lw, idt[i].offset_ld_hw,
+          idt[i].offset_hd, idt[i].ist,
+          idt[i].present, idt[i].segment_selector,
+          idt[i].type, idt[i].dpl);
+  }
+
+  IDTR idtr;
+  idtr.base  = (pointer) idt;
+  idtr.limit = sizeof(GateDesc) * num_idt_entries;
   lidt(&idtr);
+
   pf_address = 0xdeadbeef;
   pf_address_counter = 0;
 }
@@ -333,6 +332,3 @@ extern "C" void errorHandler(size_t num, size_t eip, size_t cs, size_t spurious)
     currentThread->kill();
   }
 }
-
-#include "ErrorHandlers.h" // error handler definitions and irq forwarding definitions
-
