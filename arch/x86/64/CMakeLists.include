@@ -42,7 +42,7 @@ add_custom_target(kvm
 
 # qemu: Run qemu in non debugging mode
 add_custom_target(qemu
-	COMMAND	qemu-system-x86_64 -m 8M -cpu qemu64 -smp 4 -drive file=SWEB-flat.vmdk,index=0,media=disk,format=raw -debugcon stdio -no-reboot -d guest_errors
+	COMMAND	qemu-system-x86_64 -m 8M -cpu qemu64 -smp 2 -drive file=SWEB-flat.vmdk,index=0,media=disk,format=raw -debugcon stdio -no-reboot -d guest_errors
 	COMMENT "Executing `qemu-system-x86_64 -m 8M -cpu qemu64 -drive file=SWEB-flat.vmdk,index=0,media=disk,format=raw -debugcon stdio -no-reboot`"
 	WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
 	COMMAND reset -I
