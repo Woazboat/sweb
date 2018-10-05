@@ -7,6 +7,7 @@
 #include "UserProcess.h"
 #include "ProcessRegistry.h"
 #include "File.h"
+#include "KeyValueStorage.h"
 
 size_t Syscall::syscallException(size_t syscall_number, size_t arg1, size_t arg2, size_t arg3, size_t arg4, size_t arg5)
 {
@@ -49,6 +50,12 @@ size_t Syscall::syscallException(size_t syscall_number, size_t arg1, size_t arg2
       break;
     case sc_pseudols:
       VfsSyscall::readdir((const char*) arg1);
+      break;
+    case sc_set_value:
+      return_value = setValue(arg1, arg2);
+      break;
+    case sc_get_value:
+      return_value = getValue(arg1, (size_t*)arg2);
       break;
     default:
       kprintf("Syscall::syscall_exception: Unimplemented Syscall Number %zd\n", syscall_number);
@@ -170,3 +177,24 @@ void Syscall::trace()
   currentThread->printBacktrace();
 }
 
+int Syscall::setValue(size_t key, size_t value)
+{
+        return global_kv_storage.setValue(key, value);
+}
+
+int Syscall::getValue(size_t key, size_t* value_ptr)
+{
+        if((size_t)value_ptr >= USER_BREAK)
+        {
+                return -1;
+        }
+
+        size_t tmp;
+        int status = global_kv_storage.getValue(key, &tmp);
+        if(!status)
+        {
+                *value_ptr = tmp;
+        }
+
+        return status;
+}

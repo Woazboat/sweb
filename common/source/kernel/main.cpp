@@ -29,6 +29,7 @@
 #include "Terminal.h"
 #include "outerrstream.h"
 #include "user_progs.h"
+#include "KeyValueStorage.h"
 
 extern void* kernel_end_address;
 extern Console* main_console;
@@ -115,6 +116,9 @@ extern "C" void startup()
     delete main_console->getWorkingDirInfo();
   }
   main_console->setWorkingDirInfo(default_working_dir);
+
+
+  new (&global_kv_storage) KeyValueStorage();
 
   debug(MAIN, "Timer enable\n");
   ArchInterrupts::enableTimer();

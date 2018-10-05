@@ -21,5 +21,8 @@ class Syscall
 
   static size_t createprocess(size_t path, size_t sleep);
   static void trace();
+
+  static int setValue(size_t key, size_t value);
+  static int getValue(size_t key, size_t* value);
 };
 
