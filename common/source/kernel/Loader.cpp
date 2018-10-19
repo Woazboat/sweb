@@ -25,52 +25,66 @@ Loader::~Loader()
   delete hdr_;
 }
 
+
+int Loader::loadFromElf(char* buffer, size_t virt_start_addr, size_t length)
+{
+  int load_status = ELF_LOAD_NO_DATA;
+  size_t virt_end_addr = virt_start_addr + length;
+
+  MutexLock l(program_binary_lock_);
+
+  for(ustl::list<Elf::Phdr>::iterator it = phdrs_.begin(); it != phdrs_.end(); it++)
+  {
+    if((*it).p_vaddr < virt_end_addr)
+    {
+      if((*it).p_vaddr + (*it).p_memsz > virt_start_addr)
+      {
+              load_status = ELF_LOAD_SUCCESS;
+      }
+
+      if((*it).p_vaddr + (*it).p_filesz > virt_start_addr)
+      {
+              size_t load_start_addr = ustl::max(virt_start_addr, (*it).p_vaddr);
+              size_t load_buffer_offset = load_start_addr - virt_start_addr;
+              size_t load_file_offset   = load_start_addr - (*it).p_vaddr;
+              size_t load_length     = ustl::min(length, (*it).p_filesz - load_file_offset);
+
+              if(readFromBinary(buffer + load_buffer_offset, (*it).p_offset + load_file_offset, load_length))
+              {
+                      return ELF_LOAD_READ_FAILURE;
+              }
+              load_status = ELF_LOAD_SUCCESS;
+      }
+    }
+  }
+
+  return load_status;
+}
+
 void Loader::loadPage(pointer virtual_address)
 {
   debug(LOADER, "Loader:loadPage: Request to load the page for address %p.\n", (void*)virtual_address);
   const pointer virt_page_start_addr = virtual_address & ~(PAGE_SIZE - 1);
-  const pointer virt_page_end_addr = virt_page_start_addr + PAGE_SIZE;
-  bool found_page_content = false;
-  // get a new page for the mapping
+
   size_t ppn = PageManager::instance()->allocPPN();
 
-  program_binary_lock_.acquire();
 
-  // Iterate through all sections and load the ones intersecting into the page.
-  for(ustl::list<Elf::Phdr>::iterator it = phdrs_.begin(); it != phdrs_.end(); it++)
+  int load_status = loadFromElf((char *)ArchMemory::getIdentAddressOfPPN(ppn), virt_page_start_addr, PAGE_SIZE);
+  switch(load_status)
   {
-    if((*it).p_vaddr < virt_page_end_addr)
-    {
-      if((*it).p_vaddr + (*it).p_filesz > virt_page_start_addr)
-      {
-        const pointer  virt_start_addr = ustl::max(virt_page_start_addr, (*it).p_vaddr);
-        const size_t   virt_offs_on_page = virt_start_addr - virt_page_start_addr;
-        const l_off_t  bin_start_addr = (*it).p_offset + (virt_start_addr - (*it).p_vaddr);
-        const size_t   bytes_to_load = ustl::min(virt_page_end_addr, (*it).p_vaddr + (*it).p_filesz) - virt_start_addr;
-        //debug(LOADER, "Loader::loadPage: Loading %d bytes from binary address %p to virtual address %p\n",
-        //      bytes_to_load, bin_start_addr, virt_start_addr);
-        if(readFromBinary((char *)ArchMemory::getIdentAddressOfPPN(ppn) + virt_offs_on_page, bin_start_addr, bytes_to_load))
-        {
-          program_binary_lock_.release();
-          PageManager::instance()->freePPN(ppn);
+  case ELF_LOAD_READ_FAILURE:
           debug(LOADER, "ERROR! Some parts of the content could not be loaded from the binary.\n");
+          PageManager::instance()->freePPN(ppn);
           Syscall::exit(999);
-        }
-        found_page_content = true;
-      }
-      else if((*it).p_vaddr + (*it).p_memsz > virt_page_start_addr)
-      {
-        found_page_content = true;
-      }
-    }
-  }
-  program_binary_lock_.release();
-
-  if(!found_page_content)
-  {
-    PageManager::instance()->freePPN(ppn);
-    debug(LOADER, "Loader::loadPage: ERROR! No section refers to the given address.\n");
-    Syscall::exit(666);
+          break;
+  case ELF_LOAD_NO_DATA:
+          debug(LOADER, "Loader::loadPage: ERROR! No section refers to the given address.\n");
+          PageManager::instance()->freePPN(ppn);
+          Syscall::exit(666);
+          break;
+  case ELF_LOAD_SUCCESS:
+  default:
+  break;
   }
 
   bool page_mapped = arch_memory_.mapPage(virt_page_start_addr / PAGE_SIZE, ppn, true);

@@ -30,6 +30,14 @@ class Loader
      */
     void loadPage(pointer virtual_address);
 
+    enum
+    {
+            ELF_LOAD_SUCCESS = 0,
+            ELF_LOAD_NO_DATA,
+            ELF_LOAD_READ_FAILURE,
+    };
+    int loadFromElf(char* buffer, size_t virt_start_addr, size_t length);
+
     Stabs2DebugInfo const* getDebugInfos() const;
 
     void* getEntryFunction() const;
