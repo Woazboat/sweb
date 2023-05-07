@@ -1,0 +1,31 @@
+name: CI checks
+
+on: [ push, pull_request ]
+
+env:
+  BUILD_DIR: /tmp/sweb
+  BUILD_TYPE: Debug
+
+jobs:
+  build:
+
+    name: Compilation - x86_64
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install dependencies
+      uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: gcc g++ cmake qemu-system-x86 python3
+        version: 1.0
+    - name: Checkout source
+      uses: actions/checkout@v3
+    - name: Configure cmake
+      run: ./setup_cmake.sh
+    - name: Compile
+      working-directory: /tmp/sweb
+      run: cmake --build . -j -v --config ${{env.BUILD_TYPE}}
+    - name: Compile (twice)
+      working-directory: /tmp/sweb
+      run: cmake --build . -j -v --config ${{env.BUILD_TYPE}}
