@@ -10,6 +10,8 @@ const uint32 KeyboardManager::STANDARD_KEYMAP[KEY_MAPPING_SIZE] = STANDARD_KEYMA
 
 const uint32 KeyboardManager::E0_KEYS[KEY_MAPPING_SIZE] = E0_KEYS_DEF;
 
+const uint32 KeyboardManager::SHIFT_KEYS[KEY_MAPPING_SIZE] = SHIFT_KEYS_DEF;
+
 KeyboardManager::KeyboardManager() :
     IrqDomain("Keyboard"),
     keyboard_buffer_(256), extended_scancode(0), keyboard_status_(0)
@@ -172,9 +174,8 @@ void KeyboardManager::setLEDs()
 
 uint32 KeyboardManager::convertScancode(uint8 scancode)
 {
-  uint32 simple_key = STANDARD_KEYMAP[scancode] & 0xFF;
-  uint32 control_key = STANDARD_KEYMAP[scancode] & 0xFF00;
+  if (isShift() ^ isCaps())
+    return SHIFT_KEYS[scancode];
 
-  uint32 key = control_key | simple_key;
-  return key;
+  return STANDARD_KEYMAP[scancode];
 }

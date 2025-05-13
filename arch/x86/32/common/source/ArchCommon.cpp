@@ -7,6 +7,7 @@
 #include "PlatformBus.h"
 #include "ProgrammableIntervalTimer.h"
 #include "SMP.h"
+#include "SWEBDebugInfo.h"
 #include "Scheduler.h"
 #include "SerialManager.h"
 #include "Stabs2DebugInfo.h"
@@ -18,7 +19,7 @@
 #include "multiboot.h"
 #include "offsets.h"
 #include "ports.h"
-#include <util/SWEBDebugInfo.h>
+#include "Console.h"
 
 #include "ArchMemory.h"
 #include "ArchMulticore.h"
@@ -28,6 +29,8 @@
 #else
 #define PRINT(X)
 #endif
+
+extern Console *main_console;
 
 RangeAllocator<> mmio_addr_allocator;
 
@@ -333,41 +336,200 @@ uint64 ArchCommon::cpuTimestamp()
     return timestamp;
 }
 
-#define STATS_OFFSET 22
+#define STATS_START (11)
+#define STATS_FREE_PAGES_OFFSET (11)
 
-void ArchCommon::drawStat() {
-    const char* text  = "Free pages      F9 MemInfo   F10 Locks   F11 Stacktrace   F12 Threads";
+void ArchCommon::drawStat()
+{
+    const char* text = "Free pages      F9 MemInfo   F10 Locks   F11 Stacktrace   F12 Threads";
     const char* color = "xxxxxxxxxx      xx           xxx         xxx              xxx        ";
 
+    char itoa_buffer[80];
     char* fb = (char*)getFBPtr();
-    size_t i = 0;
-    while(text[i]) {
-        fb[i * 2 + STATS_OFFSET] = text[i];
-        fb[i * 2 + STATS_OFFSET + 1] = (char)(color[i] == 'x' ? ((CONSOLECOLOR::BLACK) | (CONSOLECOLOR::DARK_GREY << 4)) :
-                                                                ((CONSOLECOLOR::DARK_GREY) | (CONSOLECOLOR::BLACK << 4)));
-        i++;
+    FrameBufferConsole* fb_console = static_cast<FrameBufferConsole*>(main_console);
+
+    size_t row = 0;
+    size_t column = STATS_START;
+
+    for (size_t i = 0; text[i]; ++i)
+    {
+        char t = text[i];
+        char c = (char)(color[i] == 'x' ? ((CONSOLECOLOR::BLACK) | (CONSOLECOLOR::DARK_GREY << 4))
+                                        : ((CONSOLECOLOR::DARK_GREY) | (CONSOLECOLOR::BLACK << 4)));
+
+        if (haveVESAConsole() && fb_console)
+        {
+            fb_console->consoleSetCharacter(row, column + i, t, c);
+        }
+        else
+        {
+            fb[row * 80 * 2 + column * 2 + i * 2] = t;
+            fb[row * 80 * 2 + column * 2 + i * 2 + 1] = c;
+        }
     }
 
-    char itoa_buffer[33];
+    // ---
 
-#define STATS_FREE_PAGES_START (STATS_OFFSET + 11*2)
-    memset(fb + STATS_FREE_PAGES_START, 0, 4*2);
+    row = 0;
+    column = STATS_START + STATS_FREE_PAGES_OFFSET;
+
     memset(itoa_buffer, '\0', sizeof(itoa_buffer));
     itoa(PageManager::instance().getNumFreePages(), itoa_buffer, 10);
-    for(size_t i = 0; (i < sizeof(itoa_buffer)) && (itoa_buffer[i] != '\0'); ++i)
+
+    if (haveVESAConsole() && fb_console)
     {
-      fb[STATS_FREE_PAGES_START + i * 2] = itoa_buffer[i];
-      fb[STATS_FREE_PAGES_START + i * 2 + 1] = ((CONSOLECOLOR::WHITE) | (CONSOLECOLOR::BLACK << 4));
+        for (size_t i = 0; i < 4; i++)
+        {
+            fb_console->consoleSetCharacter(row, column + i, 0, 0);
+        }
+    }
+    else
+    {
+        memset(fb + row * 80 * 2 + column * 2, 0, 4 * 2);
     }
 
-#define STATS_NUM_THREADS_START (80*2 + 73*2)
-    memset(fb + STATS_NUM_THREADS_START, 0, 4*2);
+    for (size_t i = 0; (i < sizeof(itoa_buffer)) && (itoa_buffer[i] != '\0'); ++i)
+    {
+        char t = itoa_buffer[i];
+        char c = ((CONSOLECOLOR::WHITE) | (CONSOLECOLOR::BLACK << 4));
+        if (haveVESAConsole() && fb_console)
+        {
+            fb_console->consoleSetCharacter(row, column + i, itoa_buffer[i], c);
+        }
+        else
+        {
+            fb[row * 80 * 2 + column * 2 + i * 2] = t;
+            fb[row * 80 * 2 + column * 2 + i * 2 + 1] = c;
+        }
+    }
+
+    // ---
+
+    row = 1;
+    column = STATS_START + STATS_FREE_PAGES_OFFSET;
+
+    size_t total_pages = PageManager::instance().getTotalNumPages();
+    size_t free_pages_percent =
+        total_pages ? (PageManager::instance().getNumFreePages() * 100) / total_pages : 0;
+
+    memset(itoa_buffer, '\0', sizeof(itoa_buffer));
+    itoa(free_pages_percent, itoa_buffer, 10);
+    size_t free_pp_len = strlen(itoa_buffer);
+    itoa_buffer[free_pp_len] = '%';
+
+    if (haveVESAConsole() && fb_console)
+    {
+        for (size_t i = 0; i < 4; i++)
+        {
+            fb_console->consoleSetCharacter(row, column + i, 0, 0);
+        }
+    }
+    else
+    {
+        memset(fb + row * 80 * 2 + column * 2, 0, 4 * 2);
+    }
+
+    for (size_t i = 0; (i < sizeof(itoa_buffer)) && (itoa_buffer[i] != '\0'); ++i)
+    {
+        char t = itoa_buffer[i];
+        char c = ((CONSOLECOLOR::WHITE) | (CONSOLECOLOR::BLACK << 4));
+        if (haveVESAConsole() && fb_console)
+        {
+            fb_console->consoleSetCharacter(row, column + i, itoa_buffer[i], c);
+        }
+        else
+        {
+            fb[row * 80 * 2 + column * 2 + i * 2] = t;
+            fb[row * 80 * 2 + column * 2 + i * 2 + 1] = c;
+        }
+    }
+
+    // ---
+
+    row = 1;
+    column = 73;
+
     memset(itoa_buffer, '\0', sizeof(itoa_buffer));
     itoa(Scheduler::instance()->num_threads, itoa_buffer, 10);
-    for(size_t i = 0; (i < sizeof(itoa_buffer)) && (itoa_buffer[i] != '\0'); ++i)
+
+    if (haveVESAConsole() && fb_console)
     {
-            fb[STATS_NUM_THREADS_START + i * 2] = itoa_buffer[i];
-            fb[STATS_NUM_THREADS_START + i * 2 + 1] = ((CONSOLECOLOR::WHITE) | (CONSOLECOLOR::BLACK << 4));
+        for (size_t i = 0; i < 4; i++)
+        {
+            fb_console->consoleSetCharacter(row, column + i, 0, 0);
+        }
+    }
+    else
+    {
+        memset(fb + row * 80 * 2 + column * 2, 0, 4 * 2);
+    }
+
+    for (size_t i = 0; (i < sizeof(itoa_buffer)) && (itoa_buffer[i] != '\0'); ++i)
+    {
+        char t = itoa_buffer[i];
+        char c = ((CONSOLECOLOR::WHITE) | (CONSOLECOLOR::BLACK << 4));
+        if (haveVESAConsole() && fb_console)
+        {
+            fb_console->consoleSetCharacter(row, column + i, itoa_buffer[i], c);
+        }
+        else
+        {
+            fb[row * 80 * 2 + column * 2 + i * 2] = t;
+            fb[row * 80 * 2 + column * 2 + i * 2 + 1] = c;
+        }
+    }
+
+    // ---
+
+    row = 1;
+    column = SMP::numRunningCpus();
+
+    // calc fixnum xxx.xxx%
+    size_t sched_lock_free = Scheduler::instance()->scheduler_lock_count_free;
+    size_t sched_lock_blocked = Scheduler::instance()->scheduler_lock_count_blocked;
+    size_t sched_lock_total = sched_lock_free + sched_lock_blocked;
+    size_t sched_lock_contention_percent =
+        sched_lock_total ? (sched_lock_blocked * 100) / sched_lock_total : 0;
+    size_t sched_lock_contention_2 =
+        sched_lock_total ? ((sched_lock_blocked * 100000) / sched_lock_total) % 1000 : 0;
+
+    memset(itoa_buffer, '\0', sizeof(itoa_buffer));
+    itoa(sched_lock_contention_percent, itoa_buffer, 10);
+    size_t slc_len = strlen(itoa_buffer);
+    itoa_buffer[slc_len++] = '.';
+    if (sched_lock_contention_2 < 100)
+        itoa_buffer[slc_len++] = '0';
+    if (sched_lock_contention_2 < 10)
+        itoa_buffer[slc_len++] = '0';
+    itoa(sched_lock_contention_2, itoa_buffer + slc_len, 10);
+    slc_len = strlen(itoa_buffer);
+    itoa_buffer[slc_len] = '%';
+
+    if (haveVESAConsole() && fb_console)
+    {
+        for (size_t i = 0; i < 7; i++)
+        {
+            fb_console->consoleSetCharacter(row, column + i, 0, 0);
+        }
+    }
+    else
+    {
+        memset(fb + row * 80 * 2 + column * 2, 0, 7 * 2);
+    }
+
+    for (size_t i = 0; (i < sizeof(itoa_buffer)) && (itoa_buffer[i] != '\0'); ++i)
+    {
+        char t = itoa_buffer[i];
+        char c = ((CONSOLECOLOR::WHITE) | (CONSOLECOLOR::BLACK << 4));
+        if (haveVESAConsole() && fb_console)
+        {
+            fb_console->consoleSetCharacter(row, column + i, itoa_buffer[i], c);
+        }
+        else
+        {
+            fb[row * 80 * 2 + column * 2 + i * 2] = t;
+            fb[row * 80 * 2 + column * 2 + i * 2 + 1] = c;
+        }
     }
 }
 
@@ -378,10 +540,23 @@ void ArchCommon::drawHeartBeat()
   drawStat();
 
   const char* clock = "/-\\|";
-  char* fb = (char*)getFBPtr();
+  char heartbeat_char = clock[heart_beat_value++ % 4];
   size_t cpu_id = SMP::currentCpuId();
-  fb[cpu_id*2] = clock[heart_beat_value++ % 4];
-  fb[cpu_id*2 + 1] = 0x9f;
+  char color = (((currentThread ? currentThread->console_color :
+                                  CONSOLECOLOR::BLACK) << 4) | CONSOLECOLOR::BRIGHT_WHITE);
+
+  if (haveVESAConsole())
+  {
+    FrameBufferConsole* fb_console = static_cast<FrameBufferConsole*>(main_console);
+    if(fb_console)
+      fb_console->consoleSetCharacter(0, (uint32_t) cpu_id, heartbeat_char, color);
+  }
+  else
+  {
+    char* fb = (char*)getFBPtr();
+    fb[cpu_id*2] = heartbeat_char;
+    fb[cpu_id*2 + 1] = color;
+  }
 }
 
 
@@ -433,3 +608,4 @@ void ArchCommon::initPlatformDrivers()
     PlatformBus::instance().registerDriver(PITDriver::instance());
     PlatformBus::instance().registerDriver(SerialManager::instance());
 }
+

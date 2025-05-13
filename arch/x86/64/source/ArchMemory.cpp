@@ -397,3 +397,8 @@ ArchMemory& ArchMemory::kernelArchMemory()
     static ArchMemory kernel_arch_mem((size_t)ArchMemory::getKernelPagingStructureRootPhys()/PAGE_SIZE);
     return kernel_arch_mem;
 }
+
+void ArchMemory::flushTlb()
+{
+  asm volatile ("movq %%cr3, %%rax; movq %%rax, %%cr3;" ::: "%rax", "memory");
+}

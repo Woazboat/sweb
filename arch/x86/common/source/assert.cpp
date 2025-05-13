@@ -105,8 +105,8 @@ bool in_assert_pre_cls = false;
       calling_thread->printBacktrace(false);
   }
 
-  kprintfd("KERNEL PANIC: Assertion %s failed in File %s, Function %s on Line %d, CPU %zd\n", condition, file, function, line, SMP::currentCpuId());
-  kprintf("KERNEL PANIC: Assertion %s failed in File %s, Function %s on Line %d, CPU %zd\n", condition, file, function, line, SMP::currentCpuId());
+  kprintfd("KERNEL PANIC: Assertion %s failed in File:Line %s:%d, Function %s, CPU %zd\n", condition, file, line, function, SMP::currentCpuId());
+  kprintf("KERNEL PANIC: Assertion %s failed in File:Line %s:%d, Function %s, CPU %zd\n", condition, file, line, function, SMP::currentCpuId());
 
   assert_print_lock.clear(eastl::memory_order_release);
   while(true)

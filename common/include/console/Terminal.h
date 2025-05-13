@@ -100,14 +100,6 @@ class Terminal : public CharacterDevice
 
     void backspace();
 
-    /**
-     * Remaps the key if shift or capslock is active
-     * @param key the key to remap
-     * @return the remaped key
-     */
-    uint32 remap(uint32 key);
-
-    void setLayout(Terminal::LAYOUTS layout);
 
   protected:
 
@@ -128,9 +120,6 @@ class Terminal : public CharacterDevice
 
     uint32 setCharacter(uint32 row, uint32 column, uint8 character);
     void scrollUp();
-
-    static bool isLetter(uint32 key);
-    static bool isNumber(uint32 key);
 
     void clearScreen();
     void fullRedraw();

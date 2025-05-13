@@ -132,7 +132,6 @@ void Console::Run()
     {
       if (isDisplayable(key))
       {
-        key = terminals_[active_terminal_]->remap(key);
         terminals_[active_terminal_]->write(key);
         terminals_[active_terminal_]->putInBuffer(key);
       }

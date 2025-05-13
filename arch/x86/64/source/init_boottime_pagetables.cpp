@@ -144,4 +144,6 @@ extern "C" void removeBootTimeIdentMapping()
   uint64* pml4 = (uint64*)&kernel_page_map_level_4[0];
   pml4[0] = 0;
   pml4[1] = 0;
+
+  ArchMemory::flushTlb();
 }

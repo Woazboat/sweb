@@ -60,8 +60,8 @@ void InitThread::Run()
     deviceTreeRoot().printSubDevices();
 
     debug(INITTHREAD, "Add devices to devicefs\n");
-    DeviceFSSuperBlock::getInstance()->addBlockDeviceInodes();
-    DeviceFSSuperBlock::getInstance()->addDeviceInodes(deviceTreeRoot());
+    DeviceFSSuperblock::getInstance()->addBlockDeviceInodes();
+    DeviceFSSuperblock::getInstance()->addDeviceInodes(deviceTreeRoot());
 
     if (!progs_ || !progs_[0])
         return;

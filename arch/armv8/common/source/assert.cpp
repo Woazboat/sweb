@@ -14,7 +14,7 @@ extern "C" void halt();
 {
   ArchInterrupts::disableInterrupts();
   system_state = KPANIC;
-  kprintfd("KERNEL PANIC: Assertion %s failed in File %s, Function %s on Line %d\n", condition, file, function, line);
+  kprintfd("KERNEL PANIC: Assertion %s failed in File:Line %s:%d Function %s\n", condition, file, line, function);
   if (currentThread != 0)
     currentThread->printBacktrace(false);
   while(1);

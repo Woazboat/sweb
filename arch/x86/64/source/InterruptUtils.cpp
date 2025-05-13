@@ -168,7 +168,7 @@ void pageFaultHandler(uint64_t address, uint64_t error, uint64_t ip)
     if (currentThread->switch_to_userspace_)
         contextSwitch();
     else
-        asm volatile ("movq %%cr3, %%rax; movq %%rax, %%cr3;" ::: "%rax");
+        ArchMemory::flushTlb();
 }
 
 /**

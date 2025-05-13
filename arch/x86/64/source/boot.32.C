@@ -132,7 +132,7 @@ extern "C" void entry()
   // Map as uncachable for now to avoid problems with memory mapped I/O -> remapped later
   asm volatile(
     // Set PML4[0] -> PDPT
-    "movl $kernel_page_directory_pointer_table - BASE + 3, kernel_page_map_level_4 - BASE\n" 
+    "movl $kernel_page_directory_pointer_table - BASE + 3, kernel_page_map_level_4 - BASE\n"
     "movl $0, kernel_page_map_level_4 - BASE + 4\n"
     // Set PDPT[0] -> PD
     "movl $kernel_page_directory - BASE + 3, kernel_page_directory_pointer_table - BASE\n"
@@ -143,12 +143,12 @@ extern "C" void entry()
     // Set PD[1] present, writeable, cache disabled, size (2MB large page), ppn = 1
     "movl $0x200093, kernel_page_directory - BASE + 8\n"
     "movl $0, kernel_page_directory - BASE + 12\n"
-    );
+    ::: "memory");
 
   PRINT("Enable PAE and PSE...\n");
-  asm("mov %cr4,%eax\n"
-      "or $0x30, %eax\n"
-      "mov %eax,%cr4\n");
+  asm("mov %%cr4,%%eax\n"
+      "or $0x30, %%eax\n"
+      "mov %%eax,%%cr4\n" ::: "eax");
 
   PRINT("Setting CR3 Register...\n");
   asm volatile("mov %[pd],%%cr3" : : [pd]"r"(TRUNCATE(kernel_page_map_level_4)));
@@ -156,19 +156,19 @@ extern "C" void entry()
   // Enter compatibility mode (while long mode code segment is not yet loaded)
   // Compatibility mode uses 4 level paging but ignores linear address bits 63:32 and treats them as 0
   PRINT("Enable EFER.LME and EFER.NXE...\n");
-  asm volatile("mov $0xC0000080,%ecx\n"
+  asm volatile("mov $0xC0000080,%%ecx\n"
       "rdmsr\n"
-      "or $0x900,%eax\n"
-      "wrmsr\n");
+      "or $0x900,%%eax\n"
+      "wrmsr\n" ::: "ecx", "eax", "edx");
 
   PRINT("Clear flags...\n");
   asm volatile("push $2\n"
       "popf\n");
 
   PRINT("Enable Paging...\n");
-  asm volatile("mov %cr0,%eax\n"
-      "or $0x80010001,%eax\n"
-      "mov %eax,%cr0\n");
+  asm volatile("mov %%cr0,%%eax\n"
+      "or $0x80010001,%%eax\n"
+      "mov %%eax,%%cr0\n" ::: "eax", "memory");
 
   PRINT("Setup TSS...\n");
   TSS* g_tss_p = (TSS*) TRUNCATE(&g_tss);
@@ -217,7 +217,7 @@ extern "C" void entry()
       "mov %%ax, %%ss\n"
       "mov %%ax, %%fs\n"
       "mov %%ax, %%gs\n"
-      : : "a"(KERNEL_DS));
+      : : "a"(KERNEL_DS) : "memory");
 
   // Long jump loads the long mode code segment selector from the GDT
   // After this, we are in proper 64-bit long mode and no longer in compatibility mode

@@ -13,7 +13,7 @@ __attribute__((noreturn)) void sweb_assert(const char *condition, uint32 line, c
 {
   ArchInterrupts::disableInterrupts();
   system_state = KPANIC;
-  kprintfd("KERNEL PANIC: Assertion %s failed in File %s, Function %s on Line %d\n", condition, file, function, line);
+  kprintfd("KERNEL PANIC: Assertion %s failed in File:Line %s:%d Function %s\n", condition, file, line, function);
   if (currentThread != 0)
     currentThread->printBacktrace(false);
   while(1);

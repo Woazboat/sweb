@@ -19,24 +19,24 @@ class DeviceFSType;
 
 extern Console* main_console;
 
-const char DeviceFSSuperBlock::ROOT_NAME[] = "/";
-const char DeviceFSSuperBlock::DEVICE_ROOT_NAME[] = "dev";
+const char DeviceFSSuperblock::ROOT_NAME[] = "/";
+const char DeviceFSSuperblock::DEVICE_ROOT_NAME[] = "dev";
 
-DeviceFSSuperBlock* DeviceFSSuperBlock::instance_ = nullptr;
+DeviceFSSuperblock* DeviceFSSuperblock::instance_ = nullptr;
 
-DeviceFSSuperBlock::DeviceFSSuperBlock(DeviceFSType* fs_type, uint32 s_dev) :
+DeviceFSSuperblock::DeviceFSSuperblock(DeviceFSType* fs_type, uint32 s_dev) :
     RamFSSuperblock(fs_type, s_dev)
 {
 }
 
-DeviceFSSuperBlock::~DeviceFSSuperBlock()
+DeviceFSSuperblock::~DeviceFSSuperblock()
 {
 }
 
-void DeviceFSSuperBlock::addDevice(Inode* device_inode, const char* device_name)
+void DeviceFSSuperblock::addDevice(Inode* device_inode, const char* device_name)
 {
   // Devices are mounted at the devicefs root (s_root_)
-  device_inode->setSuperBlock(this);
+  device_inode->setSuperblock(this);
 
   Dentry* fdntr = new Dentry(device_inode, s_root_, device_name);
 
@@ -44,14 +44,14 @@ void DeviceFSSuperBlock::addDevice(Inode* device_inode, const char* device_name)
   all_inodes_.push_back(device_inode);
 }
 
-DeviceFSSuperBlock* DeviceFSSuperBlock::getInstance()
+DeviceFSSuperblock* DeviceFSSuperblock::getInstance()
 {
     if (!instance_)
-        instance_ = new DeviceFSSuperBlock(DeviceFSType::getInstance(), 0);
+        instance_ = new DeviceFSSuperblock(DeviceFSType::getInstance(), 0);
     return instance_;
 }
 
-void DeviceFSSuperBlock::addBlockDeviceInodes()
+void DeviceFSSuperblock::addBlockDeviceInodes()
 {
     for (BDVirtualDevice* bdvd : BDManager::instance().device_list_)
     {
@@ -62,7 +62,7 @@ void DeviceFSSuperBlock::addBlockDeviceInodes()
     }
 }
 
-void DeviceFSSuperBlock::addDeviceInodes(Device& device_root)
+void DeviceFSSuperblock::addDeviceInodes(Device& device_root)
 {
     const auto rec_lambda = [this](Device& device, auto& rec_func) -> void
     {

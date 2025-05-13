@@ -45,7 +45,7 @@ foreach(curProject ${userspace_tests_PROJECTS})
     target_link_libraries(${exename}.sweb PUBLIC userspace_libc)
     target_link_libraries(${curName}.sweb PUBLIC userspace_options)
 
-    ADD_DEBUG_INFO(${curName}.sweb)
+    ADD_DEBUG_INFO(${exename}.sweb)
 
     set(ENV{USERSPACE_NAMES} "$ENV{USERSPACE_NAMES};${exename}.sweb")
     set(ENV{USERSPACE_NAMES_EXE2MINIX} "$ENV{USERSPACE_NAMES_EXE2MINIX};${EXECUTABLE_OUTPUT_PATH}/${exename}.sweb;${exename}.sweb")

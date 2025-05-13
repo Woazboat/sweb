@@ -151,6 +151,11 @@ public:
     static void flushAllTranslationCaches(size_t addr);
 
     /**
+     * flush TLB
+     */
+    static void flushTlb();
+
+    /**
      * Get the ArchMemory object used by kernel threads
      * (kernel space is the same for all threads)
      *
