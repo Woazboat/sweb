@@ -131,6 +131,58 @@ int TestFixedSubstring()
 		EATEST_VERIFY(str == "");
 	}
 
+
+	{
+		// Check that copies/moves don't become independent strings.
+		// They should all point to the same sub-string.
+		string str = "hello world";
+		fixed_substring<char> sub(str, 2, 5);
+
+		EATEST_VERIFY(sub.size() == 5);
+		EATEST_VERIFY(sub[0] == 'l');
+		EATEST_VERIFY(sub == "llo w");
+
+		vector<fixed_substring<char>> v;
+		for (eastl_size_t i = 0; i < 1000; ++i) {
+			v.push_back(sub);
+		}
+
+		sub[0] = 'g';
+		EATEST_VERIFY(str == "heglo world");
+		EATEST_VERIFY(sub == "glo w");
+
+		for (const auto& s : v){
+			EATEST_VERIFY(s == "glo w");
+		}
+
+		// copy construct
+		fixed_substring<char> sub2 = sub;
+
+		// copy assign
+		fixed_substring<char> sub3;
+		sub3 = sub;
+
+		// move construct
+		fixed_substring<char> sub4 = eastl::move(sub);
+
+		// move assign
+		fixed_substring<char> sub_again(str, 2, 5);
+		fixed_substring<char> sub5;
+		sub5 = eastl::move(sub_again);
+
+		EATEST_VERIFY(sub2 == "glo w");
+		EATEST_VERIFY(sub3 == "glo w");
+		EATEST_VERIFY(sub4 == "glo w");
+		EATEST_VERIFY(sub5 == "glo w");
+
+		str[5] = 'g';
+		EATEST_VERIFY(sub2 == "glogw");
+		EATEST_VERIFY(sub3 == "glogw");
+		EATEST_VERIFY(sub4 == "glogw");
+		EATEST_VERIFY(sub5 == "glogw");
+
+	}
+
 	return nErrorCount;
 }
 
@@ -163,6 +215,50 @@ int TestFixedString()
 		sW.append_sprintf(L" More hello %d.", 2);
 		EATEST_VERIFY(sW == L"hello world 1. More hello 2.");
 		EATEST_VERIFY(sW.capacity() == 63); // 63 because the 64 includes the terminating 0, but capacity() subtracts the terminating 0 usage.
+	}
+
+	{
+		string s("frost");
+		size_t sHash = eastl::hash<string>{}(s);
+
+		// char
+		fixed_string<char, 64> fsc1("frost");
+		fixed_string<char, 64> fsc2("bite");
+		fixed_string<char, 64> fsc3("bite");
+
+		size_t fsc1Hash = eastl::hash<fixed_string<char, 64>>{}(fsc1);
+		size_t fsc2Hash = eastl::hash<fixed_string<char, 64>>{}(fsc2);
+		size_t fsc3Hash = eastl::hash<fixed_string<char, 64>>{}(fsc3);
+
+		EATEST_VERIFY(fsc1Hash == sHash);
+		EATEST_VERIFY(fsc1Hash != fsc2Hash);
+		EATEST_VERIFY(fsc2Hash == fsc3Hash);
+
+		// wchar_t
+		fixed_string<wchar_t, 64> fswc1(L"frost");
+		fixed_string<wchar_t, 64> fswc2(L"bite");
+		fixed_string<wchar_t, 64> fswc3(L"bite");
+
+		size_t fswc1Hash = eastl::hash<fixed_string<wchar_t, 64>>{}(fswc1);
+		size_t fswc2Hash = eastl::hash<fixed_string<wchar_t, 64>>{}(fswc2);
+		size_t fswc3Hash = eastl::hash<fixed_string<wchar_t, 64>>{}(fswc3);
+
+		EATEST_VERIFY(fswc1Hash == sHash);
+		EATEST_VERIFY(fswc1Hash != fswc2Hash);
+		EATEST_VERIFY(fswc2Hash == fswc3Hash);
+
+		// char8_t
+		fixed_string<char8_t, 64> fsc81("frost");
+		fixed_string<char8_t, 64> fsc82("bite");
+		fixed_string<char8_t, 64> fsc83("bite");
+
+		size_t fsc81Hash = eastl::hash<fixed_string<char8_t, 64>>{}(fsc81);
+		size_t fsc82Hash = eastl::hash<fixed_string<char8_t, 64>>{}(fsc82);
+		size_t fsc83Hash = eastl::hash<fixed_string<char8_t, 64>>{}(fsc83);
+
+		EATEST_VERIFY(fsc81Hash == sHash);
+		EATEST_VERIFY(fsc81Hash != fsc82Hash);
+		EATEST_VERIFY(fsc82Hash == fsc83Hash);
 	}
 
 

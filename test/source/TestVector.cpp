@@ -1258,6 +1258,84 @@ int TestVector()
 		EATEST_VERIFY(!(intArray1 > intArray2));
 	}
 
+	// three way comparison operator
+#if defined(EA_COMPILER_HAS_THREE_WAY_COMPARISON)
+	{
+		using namespace eastl;
+
+		vector<int> intArray1(10);
+		vector<int> intArray2(10);
+
+		for (i = 0; i < intArray1.size(); i++)
+		{
+		    intArray1[i] = (int)i; // Make intArray1 equal to intArray2.
+		    intArray2[i] = (int)i;
+		}
+
+		// Verify equality between intArray1 and intArray2
+		EATEST_VERIFY((intArray1 <=> intArray2) == 0);
+		EATEST_VERIFY(!((intArray1 <=> intArray2) != 0));
+		EATEST_VERIFY((intArray1 <=> intArray2) <= 0);
+		EATEST_VERIFY((intArray1 <=> intArray2) >= 0);
+		EATEST_VERIFY(!((intArray1 <=> intArray2) < 0));
+		EATEST_VERIFY(!((intArray1 <=> intArray2) > 0));
+
+		intArray1.push_back(100); // Make intArray1 less than intArray2.
+		intArray2.push_back(101);
+
+		// Verify intArray1 < intArray2
+		EATEST_VERIFY(!((intArray1 <=> intArray2) == 0));
+		EATEST_VERIFY((intArray1 <=> intArray2) != 0);
+		EATEST_VERIFY((intArray1 <=> intArray2) <= 0);
+		EATEST_VERIFY(!((intArray1 <=> intArray2) >= 0));
+		EATEST_VERIFY(((intArray1 <=> intArray2) < 0));
+		EATEST_VERIFY(!((intArray1 <=> intArray2) > 0));
+
+		for (i = 0; i < 3; i++) // Make the length of intArray2 less than intArray1
+			intArray2.pop_back();
+
+		// Verify intArray2.size() < intArray1.size() and intArray2 is a subset of intArray1
+		EATEST_VERIFY(!((intArray1 <=> intArray2) == 0));
+		EATEST_VERIFY((intArray1 <=> intArray2) != 0);
+		EATEST_VERIFY((intArray1 <=> intArray2) >= 0);
+		EATEST_VERIFY(!((intArray1 <=> intArray2) <= 0));
+		EATEST_VERIFY(((intArray1 <=> intArray2) > 0));
+		EATEST_VERIFY(!((intArray1 <=> intArray2) < 0));
+	}
+
+	{
+		using namespace eastl;
+
+		vector<int> intArray1 = {1, 2, 3, 4, 5, 6, 7};
+		vector<int> intArray2 = {7, 6, 5, 4, 3, 2, 1};
+		vector<int> intArray3 = {1, 2, 3, 4};
+
+		struct weak_ordering_vector
+		{
+		    vector<int> vec;
+		    inline std::weak_ordering operator<=>(const weak_ordering_vector& b) const { return vec <=> b.vec; }
+		};
+
+		EATEST_VERIFY(synth_three_way{}(weak_ordering_vector{intArray1}, weak_ordering_vector{intArray2}) == std::weak_ordering::less);
+		EATEST_VERIFY(synth_three_way{}(weak_ordering_vector{intArray3}, weak_ordering_vector{intArray1}) == std::weak_ordering::less);
+		EATEST_VERIFY(synth_three_way{}(weak_ordering_vector{intArray2}, weak_ordering_vector{intArray1}) == std::weak_ordering::greater);
+		EATEST_VERIFY(synth_three_way{}(weak_ordering_vector{intArray2}, weak_ordering_vector{intArray3}) == std::weak_ordering::greater);
+		EATEST_VERIFY(synth_three_way{}(weak_ordering_vector{intArray1}, weak_ordering_vector{intArray1}) == std::weak_ordering::equivalent);
+
+		struct strong_ordering_vector
+		{
+		    vector<int> vec;
+		    inline std::strong_ordering operator<=>(const strong_ordering_vector& b) const { return vec <=> b.vec; }
+		};
+
+		EATEST_VERIFY(synth_three_way{}(strong_ordering_vector{intArray1}, strong_ordering_vector{intArray2}) == std::strong_ordering::less);
+		EATEST_VERIFY(synth_three_way{}(strong_ordering_vector{intArray3}, strong_ordering_vector{intArray1}) == std::strong_ordering::less);
+		EATEST_VERIFY(synth_three_way{}(strong_ordering_vector{intArray2}, strong_ordering_vector{intArray1}) == std::strong_ordering::greater);
+		EATEST_VERIFY(synth_three_way{}(strong_ordering_vector{intArray2}, strong_ordering_vector{intArray3}) == std::strong_ordering::greater);
+		EATEST_VERIFY(synth_three_way{}(strong_ordering_vector{intArray1}, strong_ordering_vector{intArray1}) == std::strong_ordering::equal);
+	}
+#endif
+
 	{
 		using namespace eastl;
 
@@ -1317,7 +1395,7 @@ int TestVector()
 		eastl::vector<TestObject> toTest;
 
 		// InputIterator
-		demoted_iterator<TestObject*, eastl::forward_iterator_tag> toInput(&to);
+		demoted_iterator<TestObject*, EASTL_ITC_NS::forward_iterator_tag> toInput(&to);
 		toTest.assign(toInput, toInput);
 
 		// ForwardIterator
@@ -1354,16 +1432,6 @@ int TestVector()
 
 	EATEST_VERIFY(TestObject::IsClear());
 	TestObject::Reset();
-
-	{  // Regression of user error report for the case of vector<const type>.
-		eastl::vector<int> ctorValues;
-
-		for (int v = 0; v < 10; v++)
-			ctorValues.push_back(v);
-
-		eastl::vector<const ConstType> testStruct(ctorValues.begin(), ctorValues.end());
-		eastl::vector<const int> testInt(ctorValues.begin(), ctorValues.end());
-	}
 
 	{  // Regression to verify that const vector works.
 		const eastl::vector<int> constIntVector1;
@@ -1475,26 +1543,28 @@ int TestVector()
 		// because the existing elements of this were allocated by a different allocator and
 		// will be freed in the future with the allocator copied from x.
 		// The test below should work for the case of EASTL_ALLOCATOR_COPY_ENABLED == 0 or 1.
+		{
+			InstanceAllocator ia0((uint8_t)0);
+			InstanceAllocator ia1((uint8_t)1);
+
+			eastl::vector<int, InstanceAllocator> v0((eastl_size_t)1, (int)0, ia0);
+			eastl::vector<int, InstanceAllocator> v1((eastl_size_t)1, (int)1, ia1);
+
+			EATEST_VERIFY((v0.front() == 0) && (v1.front() == 1));
+			EATEST_VERIFY(v0.get_allocator() != v1.get_allocator());
+			v0 = v1;
+			EATEST_VERIFY((v0.front() == 1) && (v1.front() == 1));
+			EATEST_VERIFY(InstanceAllocator::mMismatchCount == 0);
+			EATEST_VERIFY(v0.validate());
+			EATEST_VERIFY(v1.validate());
+			bool allocatorsEqual = (v0.get_allocator() == v1.get_allocator());
+			EATEST_VERIFY(allocatorsEqual == (bool)EASTL_ALLOCATOR_COPY_ENABLED);
+
+			// destroying containers to invoke InstanceAllocator::deallocate() checks
+		}
+
+		EATEST_VERIFY_MSG(InstanceAllocator::mMismatchCount == 0, "Container elements should be deallocated by the allocator that allocated it.");
 		InstanceAllocator::reset_all();
-
-		InstanceAllocator ia0((uint8_t)0);
-		InstanceAllocator ia1((uint8_t)1);
-
-		eastl::vector<int, InstanceAllocator> v0((eastl_size_t)1, (int)0, ia0);
-		eastl::vector<int, InstanceAllocator> v1((eastl_size_t)1, (int)1, ia1);
-
-		EATEST_VERIFY((v0.front() == 0) && (v1.front() == 1));
-#if EASTL_ALLOCATOR_COPY_ENABLED
-		EATEST_VERIFY(v0.get_allocator() != v1.get_allocator());
-#endif
-		v0 = v1;
-		EATEST_VERIFY((v0.front() == 1) && (v1.front() == 1));
-		EATEST_VERIFY(InstanceAllocator::mMismatchCount == 0);
-		EATEST_VERIFY(v0.validate());
-		EATEST_VERIFY(v1.validate());
-#if EASTL_ALLOCATOR_COPY_ENABLED
-		EATEST_VERIFY(v0.get_allocator() == v1.get_allocator());
-#endif
 	}
 
 	{
@@ -1637,7 +1707,7 @@ int TestVector()
 		{
 			struct iterator
 			{
-				typedef eastl::input_iterator_tag iterator_category;
+				typedef EASTL_ITC_NS::input_iterator_tag iterator_category;
 				typedef int value_type;
 				typedef ptrdiff_t difference_type;
 				typedef int* pointer;
@@ -1682,7 +1752,6 @@ int TestVector()
 				// malloc).  The memory allocated from one instance can be freed by another instance in the case where
 				// allocators compare equal.  This test is verifying functionality in the opposite case where allocators
 				// instances do not compare equal and must clean up its own allocated memory.
-				InstanceAllocator::reset_all();
 				{
 					InstanceAllocator a1(uint8_t(0)), a2(uint8_t(1));
 					eastl::vector<eastl::unique_ptr<int>, InstanceAllocator> v1(a1);
@@ -1701,8 +1770,12 @@ int TestVector()
 					VERIFY(v1.empty() && !v2.empty());
 					v1.swap(v2); 
 					VERIFY(!v1.empty() && v2.empty());
+
+					// destroying containers to invoke InstanceAllocator::deallocate() checks
 				}
-				VERIFY(InstanceAllocator::mMismatchCount == 0);
+
+				EATEST_VERIFY_MSG(InstanceAllocator::mMismatchCount == 0, "Container elements should be deallocated by the allocator that allocated it.");
+				InstanceAllocator::reset_all();
 			}
 		}
 	#endif
@@ -1718,22 +1791,75 @@ int TestVector()
 		{
 			eastl::vector<int> v = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 
-			eastl::erase(v, 5);
+			auto numErased = eastl::erase(v, 5);
 			VERIFY((v == eastl::vector<int> {1, 2, 3, 4, 6, 7, 8, 9}));
+			VERIFY(numErased == 1);
 
-			eastl::erase(v, 2);
+			numErased = eastl::erase(v, 2);
 			VERIFY((v == eastl::vector<int> {1, 3, 4, 6, 7, 8, 9}));
+			VERIFY(numErased == 1);
 
-			eastl::erase(v, 9);
+			numErased = eastl::erase(v, 9);
 			VERIFY((v == eastl::vector<int> {1, 3, 4, 6, 7, 8}));
+			VERIFY(numErased == 1);
 		}
 
 		{
 			eastl::vector<int> v = {1, 2, 3, 4, 5, 6, 7, 8, 9};
-			eastl::erase_if(v, [](auto i) { return i % 2 == 0; });
+			auto numErased = eastl::erase_if(v, [](auto i) { return i % 2 == 0; });
 			VERIFY((v == eastl::vector<int>{1, 3, 5, 7, 9}));
+			VERIFY(numErased == 4);
 		}
 	}
 
+	// Tests for erase_unordered
+	{
+		{
+			eastl::vector<int> vec = {0, 1, 2, 3};
+			auto numErased = eastl::erase_unsorted(vec, 1);
+			EATEST_VERIFY(numErased == 1);
+			EATEST_VERIFY(VerifySequence(vec, {0, 3, 2}, "erase_unordered") );
+		}
+		{
+			eastl::vector<int> vec = {};
+			auto numErased = eastl::erase_unsorted(vec, 42);
+			EATEST_VERIFY(numErased == 0);
+			EATEST_VERIFY(vec.size() == 0);
+		}
+		// The following test checks that the correct implementation is called for vector by checking the order
+		// of the remaining values. It is not a strict requirement that they have this order but it
+		// is expected to be the result based on that it minimizes the amount of work.
+		{
+			eastl::vector<int> vec = {0, 1, 2, 3, 1, 5, 6, 1, 8, 9};
+			auto numErased = eastl::erase_unsorted(vec, 1);
+			EATEST_VERIFY(numErased == 3);
+			EATEST_VERIFY(VerifySequence(vec, {0, 9, 2, 3, 8, 5, 6}, "erase_unordered") );
+		}
+	}
+
+	// Tests for erase_unordered_if
+	{
+		{
+			eastl::vector<int> vec = {0, 1, 2, 3};
+			auto numErased = eastl::erase_unsorted_if(vec, [](const int& v) { return v % 2 == 1; });
+			EATEST_VERIFY(numErased == 2);
+			EATEST_VERIFY(VerifySequence(vec, {0, 2}, "erase_unordered_if") );
+		}
+		{
+			eastl::vector<int> vec = {};
+			auto numErased = eastl::erase_unsorted_if(vec, [](const int& v) { return v % 2 == 1; });
+			EATEST_VERIFY(numErased == 0);
+			EATEST_VERIFY(vec.size() == 0);
+		}
+		// The following test checks that the correct implementation is called for vector by checking the order
+		// of the remaining values. It is not a strict requirement that they have this order but it
+		// is expected to be the result based on that it minimizes the amount of work.
+		{
+			eastl::vector<int> vec = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+			auto numErased = eastl::erase_unsorted_if(vec, [](const int& v) { return v % 2 == 1; });
+			EATEST_VERIFY(numErased == 5);
+			EATEST_VERIFY(VerifySequence(vec, {0, 8, 2, 6, 4}, "erase_unordered_if") );
+		}
+	}
 	return nErrorCount;
 }

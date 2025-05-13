@@ -568,26 +568,33 @@ int TestHash()
 		
 		// test hashtable::swap using different allocator instances
 		{
-			typedef hash_set<int, eastl::hash<int>, eastl::equal_to<int>, InstanceAllocator> HS;
-			HS hashSet1(InstanceAllocator("hash_set1 name", 111));
-			HS hashSet2(InstanceAllocator("hash_set2 name", 222));
-
-			for(int i = 0; i < 10; i++)
 			{
-				hashSet1.insert(i);
-				hashSet2.insert(i+10);
+				typedef hash_set<int, eastl::hash<int>, eastl::equal_to<int>, InstanceAllocator> HS;
+				HS hashSet1(InstanceAllocator("hash_set1 name", 111));
+				HS hashSet2(InstanceAllocator("hash_set2 name", 222));
+
+				for (int i = 0; i < 10; i++)
+				{
+					hashSet1.insert(i);
+					hashSet2.insert(i + 10);
+				}
+
+				hashSet2.swap(hashSet1);
+
+				EATEST_VERIFY(hashSet1.validate());
+				EATEST_VERIFY(hashSet2.validate());
+
+				EATEST_VERIFY(hashSet1.get_allocator().mInstanceId == 222);
+				EATEST_VERIFY(hashSet2.get_allocator().mInstanceId == 111);
+
+				EATEST_VERIFY(eastl::all_of(eastl::begin(hashSet2), eastl::end(hashSet2), [](int i) { return i < 10; }));
+				EATEST_VERIFY(eastl::all_of(eastl::begin(hashSet1), eastl::end(hashSet1), [](int i) { return i >= 10; }));
+
+				// destroying containers to invoke InstanceAllocator::deallocate() checks
 			}
 
-			hashSet2.swap(hashSet1);
-
-			EATEST_VERIFY(hashSet1.validate());
-			EATEST_VERIFY(hashSet2.validate());
-
-			EATEST_VERIFY(hashSet1.get_allocator().mInstanceId == 222);
-			EATEST_VERIFY(hashSet2.get_allocator().mInstanceId == 111);
-
-			EATEST_VERIFY(eastl::all_of(eastl::begin(hashSet2), eastl::end(hashSet2), [](int i) { return i < 10; }));
-			EATEST_VERIFY(eastl::all_of(eastl::begin(hashSet1), eastl::end(hashSet1), [](int i) { return i >= 10; }));
+			EATEST_VERIFY_MSG(InstanceAllocator::mMismatchCount == 0, "Container elements should be deallocated by the allocator that allocated it.");
+			InstanceAllocator::reset_all();
 		}
 	}
 
@@ -746,14 +753,16 @@ int TestHash()
 
 	{ // hash_set erase_if
 		hash_set<int> m = {0, 1, 2, 3, 4};
-		eastl::erase_if(m, [](auto i) { return i % 2 == 0; });
+		auto numErased = eastl::erase_if(m, [](auto i) { return i % 2 == 0; });
 		VERIFY((m == hash_set<int>{1, 3}));
+	    VERIFY(numErased == 3);
 	}
 
 	{ // hash_multiset erase_if
 		hash_multiset<int> m = {0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 4};
-		eastl::erase_if(m, [](auto i) { return i % 2 == 0; });
+		auto numErased = eastl::erase_if(m, [](auto i) { return i % 2 == 0; });
 		VERIFY((m == hash_multiset<int>{1, 1, 1, 3}));
+	    VERIFY(numErased == 12);
 	}
 
 
@@ -943,15 +952,17 @@ int TestHash()
 
 	{ // hash_map erase_if
 		hash_map<int, int> m = {{0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}};
-		eastl::erase_if(m, [](auto p) { return p.first % 2 == 0; });
+		auto numErased = eastl::erase_if(m, [](auto p) { return p.first % 2 == 0; });
 		VERIFY((m == hash_map<int, int>{{1, 1}, {3, 3}}));
+	    VERIFY(numErased == 3);
 	}
 
 	{ // hash_multimap erase_if
 		hash_multimap<int, int> m = {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {1, 1}, {2, 2},
 		                             {2, 2}, {2, 2}, {2, 2}, {3, 3}, {3, 3}, {4, 4}};
-		eastl::erase_if(m, [](auto p) { return p.first % 2 == 0; });
+		auto numErased = eastl::erase_if(m, [](auto p) { return p.first % 2 == 0; });
 		VERIFY((m == hash_multimap<int, int>{{1, 1}, {3, 3}, {3, 3}}));
+	    VERIFY(numErased == 9);
 	}
 
 
@@ -980,8 +991,9 @@ int TestHash()
 
 		for(int i = 0; i < kCount * 2; i++)
 		{
-			char pString[32];
-			sprintf(pString, "%d", i);
+			const int kBufferSize = 32;
+			char pString[kBufferSize];
+			EA::StdC::Snprintf(pString, kBufferSize, "%d", i);
 
 			HashSetString::iterator it = hashSet.find_as(pString);
 			if(i < kCount)
@@ -989,7 +1001,7 @@ int TestHash()
 			else
 				EATEST_VERIFY(it == hashSet.end());
 
-			it = hashSet.find_as(pString, hash<const char*>(), equal_to_2<string, const char*>());
+			it = hashSet.find_as(pString, hash<const char*>(), equal_to<>());
 			if(i < kCount)
 				EATEST_VERIFY(it != hashSet.end());
 			else
@@ -1379,11 +1391,8 @@ int TestHash()
 		{
 			Key() {}
 			Key(Key&&) {}
-			Key(const Key&&) {}
-			bool operator==(const Key&) const { return true; }
-
-		private:
 			Key(const Key&) {}
+			bool operator==(const Key&) const { return true; }
 		};
 		EA_RESTORE_VC_WARNING()
 

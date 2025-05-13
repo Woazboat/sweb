@@ -8,6 +8,7 @@
 
 
 #include <EABase/eabase.h>
+#include <EAStdC/EASprintf.h>
 #include <EATest/EATest.h>
 
 EA_DISABLE_ALL_VC_WARNINGS()
@@ -24,12 +25,17 @@ EA_RESTORE_ALL_VC_WARNINGS();
 
 int TestAlgorithm();
 int TestAllocator();
+int TestAllocatorPropagate();
 int TestAny();
 int TestArray();
+#if defined(EA_COMPILER_CPP20_ENABLED)
+int TestBit();
+#endif
 int TestBitVector();
 int TestBitset();
 int TestCharTraits();
 int TestChrono();
+int TestConcepts();
 int TestCppCXTypeTraits();
 int TestDeque();
 int TestExtra();
@@ -81,8 +87,20 @@ int TestVector();
 int TestVectorMap();
 int TestVectorSet();
 int TestAtomicBasic();
+int TestAtomicMultiThreaded();
 int TestAtomicAsm();
 int TestBitcast();
+int TestGslAlgorithum();
+int TestGslAssertion();
+int TestGslAt();
+int TestGslByte();
+int TestGslNotNull();
+int TestGslOwner();
+int TestGslSpanCompatibility();
+int TestGslSpanExt();
+int TestGslSpan();
+int TestGslStrictNotNull();
+int TestGslUtils();
 
 
 // Now enable warnings as desired.
@@ -482,6 +500,19 @@ struct TestObject
 	{
 		return (sTOCount == 0) && (sTODtorCount == sTOCtorCount) && (sMagicErrorCount == 0);
 	}
+
+	TestObject& operator++()
+	{
+		++mX;
+		return *this;
+	}
+
+	TestObject operator++(int) const
+	{
+		TestObject temp(*this);
+		++temp;
+		return temp;
+	}
 };
 
 // Operators
@@ -516,33 +547,6 @@ namespace eastl
 // We declare this all in one line because the user should never need to 
 // debug usage of this function.
 template <typename T> struct use_mX { int operator()(const T& t) const { return t.mX; } };
-
-
-
-///////////////////////////////////////////////////////////////////////////////
-// SizedPOD
-//
-// Exists for the purpose testing PODs that are larger than built-in types.
-//
-template <size_t kSize>
-struct SizedPOD
-{
-	char memory[kSize];
-};
-
-
-
-///////////////////////////////////////////////////////////////////////////////
-/// ConstType
-///
-/// Used to test const type containers (e.g. vector<const ConstType>).
-///
-class ConstType
-{
-public:
-	ConstType(int value) : mDummy(value) {};
-	int mDummy;
-};
 
 
 
@@ -784,7 +788,65 @@ int CompareContainers(const T1& t1, const T2& t2, const char* ppName,
 }
 
 
+template <typename InputIterator1, typename InputIterator2>
+bool VerifySequence(InputIterator1 firstActual, InputIterator1 lastActual, InputIterator2 firstExpected, InputIterator2 lastExpected, const char* pName)
+{
+	size_t     numMatching = 0;
+	
+	while ((firstActual != lastActual) && (firstExpected != lastExpected) && (*firstActual == *firstExpected))
+	{
+		++firstActual;
+		++firstExpected;
+		++numMatching;
+	}
 
+	if (firstActual == lastActual && firstExpected == lastExpected)
+	{
+		return true;
+	}
+	else if (firstActual != lastActual && firstExpected == lastExpected)
+	{
+		size_t numActual = numMatching, numExpected = numMatching;
+		for (; firstActual != lastActual; ++firstActual)
+			++numActual;
+		if (pName)
+			EASTLTest_Printf("[%s] Too many elements: expected %u, found %u\n", pName, numExpected, numActual);
+		else
+			EASTLTest_Printf("Too many elements: expected %u, found %u\n", numExpected, numActual);
+		return false;
+	}
+	else if (firstActual == lastActual && firstExpected != lastExpected)
+	{
+		size_t numActual = numMatching, numExpected = numMatching;
+		for (; firstExpected != lastExpected; ++firstExpected)
+			++numExpected;
+		if (pName)
+			EASTLTest_Printf("[%s] Too few elements: expected %u, found %u\n", pName, numExpected, numActual);
+		else
+			EASTLTest_Printf("Too few elements: expected %u, found %u\n", numExpected, numActual);
+		return false;
+	}
+	else // if (firstActual != lastActual && firstExpected != lastExpected)
+	{
+		if (pName)
+			EASTLTest_Printf("[%s] Mismatch at index %u\n", pName, numMatching);
+		else
+			EASTLTest_Printf("Mismatch at index %u\n", numMatching);
+		return false;
+	}
+}
+
+template <typename InputIterator, typename T = typename InputIterator::value_type>
+bool VerifySequence(InputIterator firstActual, InputIterator lastActual, std::initializer_list<T> initList, const char* pName)
+{
+	return VerifySequence(firstActual, lastActual, initList.begin(), initList.end(), pName);
+}
+
+template <typename Container, typename T = typename Container::value_type>
+bool VerifySequence(const Container& container, std::initializer_list<T> initList, const char* pName)
+{
+	return VerifySequence(container.begin(), container.end(), initList.begin(), initList.end(), pName);
+}
 
 
 /// VerifySequence
@@ -1261,6 +1323,8 @@ public:
 		activeAllocatedMemory = 0;
 	}
 
+	virtual ~CountingAllocator() = default;
+
 	static uint64_t activeAllocCount;
 	static uint64_t totalAllocCount;
 	static uint64_t totalDeallocCount;
@@ -1304,8 +1368,9 @@ public:
 		kMultiplier = 16
 	}; // Use 16 because it's the highest currently known platform alignment requirement.
 
-	InstanceAllocator(const char* = NULL, uint8_t instanceId = 0) : mInstanceId(instanceId) {}
-	InstanceAllocator(uint8_t instanceId) : mInstanceId(instanceId) {}
+	InstanceAllocator() : mInstanceId(0) {}
+	explicit InstanceAllocator(const char*, uint8_t instanceId = 0) : mInstanceId(instanceId) {}
+	explicit InstanceAllocator(uint8_t instanceId) : mInstanceId(instanceId) {}
 	InstanceAllocator(const InstanceAllocator& x) : mInstanceId(x.mInstanceId) {}
 	InstanceAllocator(const InstanceAllocator& x, const char*) : mInstanceId(x.mInstanceId) {}
 
@@ -1353,7 +1418,7 @@ public:
 
 	const char* get_name()
 	{
-		sprintf(mName, "InstanceAllocator %u", mInstanceId);
+		EA::StdC::Snprintf(mName, kNameBufferSize, "InstanceAllocator %u", mInstanceId);
 		return mName;
 	}
 
@@ -1362,8 +1427,9 @@ public:
 	static void reset_all() { mMismatchCount = 0; }
 
 public:
+	const static int kNameBufferSize = 32;
 	uint8_t mInstanceId;
-	char mName[32];
+	char mName[kNameBufferSize];
 
 	static int mMismatchCount;
 };
@@ -1562,6 +1628,146 @@ struct MoveOnlyTypeDefaultCtor
 	int mVal;
 };
 
+struct NonTriviallyCopyable {
+	// non-trivial special members (that is equivalent to the defaults)
+	NonTriviallyCopyable(unsigned int v = 0) noexcept : mValue(v) {}
+	NonTriviallyCopyable(NonTriviallyCopyable&& other) noexcept : mValue(other.mValue) {}
+	NonTriviallyCopyable& operator=(NonTriviallyCopyable&& other) noexcept { mValue = other.mValue; return *this; }
+	NonTriviallyCopyable(const NonTriviallyCopyable& other) noexcept : mValue(other.mValue) {}
+	NonTriviallyCopyable& operator=(const NonTriviallyCopyable& other) noexcept { mValue = other.mValue; return *this; }
+
+	friend bool operator==(const NonTriviallyCopyable& lhs, const NonTriviallyCopyable& rhs) { return lhs.mValue == rhs.mValue; }
+
+public:
+	unsigned int mValue;
+};
+static_assert(eastl::is_default_constructible<NonTriviallyCopyable>::value, "NonTriviallyCopyable");
+static_assert(!eastl::is_trivially_copyable<NonTriviallyCopyable>::value, "NonTriviallyCopyable");
+static_assert(eastl::is_standard_layout<NonTriviallyCopyable>::value, "NonTriviallyCopyable");
+
+struct TriviallyCopyableWithCopy {
+	// non-trivial default ctor
+	TriviallyCopyableWithCopy(unsigned int v = 0) noexcept : mValue(v) {}
+
+	// all eligible (for trivial copyability) copy ctor/move ctor/copy assignment/move assignment are trivial
+	TriviallyCopyableWithCopy(const TriviallyCopyableWithCopy&) = default;
+	TriviallyCopyableWithCopy& operator=(const TriviallyCopyableWithCopy&) = default;
+
+	// remaining copy ctor/move ctor/copy assignment/move assignment are deleted
+	TriviallyCopyableWithCopy(TriviallyCopyableWithCopy&&) = delete;
+	TriviallyCopyableWithCopy& operator=(TriviallyCopyableWithCopy&&) = delete;
+
+	friend bool operator==(const TriviallyCopyableWithCopy& lhs, const TriviallyCopyableWithCopy& rhs) { return lhs.mValue == rhs.mValue; }
+
+public:
+	unsigned int mValue;
+
+	// intentionally not a standard-layout class:
+	// standard-layout requires all non-static data members have the same access control.
+private:
+	char ch{ 'C' };
+};
+static_assert(eastl::is_default_constructible<TriviallyCopyableWithCopy>::value, "TriviallyCopyableWithCopy");
+static_assert(eastl::is_trivially_copyable<TriviallyCopyableWithCopy>::value, "TriviallyCopyableWithCopy");
+static_assert(!eastl::is_standard_layout<TriviallyCopyableWithCopy>::value, "TriviallyCopyableWithCopy");
+
+struct TriviallyCopyableWithMove {
+	// non-trivial default ctor
+	TriviallyCopyableWithMove(unsigned int v = 0) noexcept : mValue(v) {}
+
+	// all eligible (for trivial copyability) copy ctor/move ctor/copy assignment/move assignment are trivial
+	TriviallyCopyableWithMove(TriviallyCopyableWithMove&&) = default;
+	TriviallyCopyableWithMove& operator=(TriviallyCopyableWithMove&&) = default;
+
+	// remaining copy ctor/move ctor/copy assignment/move assignment are deleted
+	TriviallyCopyableWithMove(const TriviallyCopyableWithMove&) = delete;
+	TriviallyCopyableWithMove& operator=(const TriviallyCopyableWithMove&) = delete;
+
+	friend bool operator==(const TriviallyCopyableWithMove& lhs, const TriviallyCopyableWithMove& rhs) { return lhs.mValue == rhs.mValue; }
+
+public:
+	unsigned int mValue;
+
+	// intentionally not a standard-layout class:
+	// standard-layout requires all non-static data members have the same access control.
+private:
+	char ch{ 'C' };
+};
+static_assert(eastl::is_default_constructible<TriviallyCopyableWithMove>::value, "TriviallyCopyableWithMove");
+static_assert(eastl::is_trivially_copyable<TriviallyCopyableWithMove>::value, "TriviallyCopyableWithMove");
+static_assert(!eastl::is_standard_layout<TriviallyCopyableWithMove>::value, "TriviallyCopyableWithMove");
+
+struct TriviallyCopyableWithCopyCtor {
+	TriviallyCopyableWithCopyCtor(unsigned int v) noexcept : mValue(v) {}
+
+	TriviallyCopyableWithCopyCtor(const TriviallyCopyableWithCopyCtor&) = default;
+
+	TriviallyCopyableWithCopyCtor() = delete;
+	TriviallyCopyableWithCopyCtor(TriviallyCopyableWithCopyCtor&&) = delete;
+	TriviallyCopyableWithCopyCtor& operator=(const TriviallyCopyableWithCopyCtor&) = delete;
+	TriviallyCopyableWithCopyCtor& operator=(TriviallyCopyableWithCopyCtor&&) = delete;
+
+	friend bool operator==(const TriviallyCopyableWithCopyCtor& lhs, const TriviallyCopyableWithCopyCtor& rhs) { return lhs.mValue == rhs.mValue; }
+
+	unsigned int mValue;
+};
+static_assert(eastl::is_trivially_copyable<TriviallyCopyableWithCopyCtor>::value, "TriviallyCopyableWithCopyCtor");
+static_assert(eastl::is_standard_layout<TriviallyCopyableWithCopyCtor>::value, "TriviallyCopyableWithCopyCtor");
+
+struct TriviallyCopyableWithCopyAssign {
+	TriviallyCopyableWithCopyAssign(unsigned int v) noexcept : mValue(v) {}
+
+	TriviallyCopyableWithCopyAssign& operator=(const TriviallyCopyableWithCopyAssign&) = default;
+
+	TriviallyCopyableWithCopyAssign() = delete;
+	TriviallyCopyableWithCopyAssign(const TriviallyCopyableWithCopyAssign&) = delete;
+	TriviallyCopyableWithCopyAssign(TriviallyCopyableWithCopyAssign&&) = delete;
+	TriviallyCopyableWithCopyAssign& operator=(TriviallyCopyableWithCopyAssign&&) = delete;
+
+	friend bool operator==(const TriviallyCopyableWithCopyAssign& lhs, const TriviallyCopyableWithCopyAssign& rhs) { return lhs.mValue == rhs.mValue; }
+
+	unsigned int mValue;
+};
+static_assert(eastl::is_trivially_copyable<TriviallyCopyableWithCopyAssign>::value, "TriviallyCopyableWithCopyAssign");
+static_assert(eastl::is_standard_layout<TriviallyCopyableWithCopyAssign>::value, "TriviallyCopyableWithCopyAssign");
+
+struct TriviallyCopyableWithMoveCtor {
+	TriviallyCopyableWithMoveCtor(unsigned int v) noexcept : mValue(v) {}
+
+	TriviallyCopyableWithMoveCtor(TriviallyCopyableWithMoveCtor&&) = default;
+
+	TriviallyCopyableWithMoveCtor() = delete;
+	TriviallyCopyableWithMoveCtor(const TriviallyCopyableWithMoveCtor&) = delete;
+	TriviallyCopyableWithMoveCtor& operator=(const TriviallyCopyableWithMoveCtor&) = delete;
+	TriviallyCopyableWithMoveCtor& operator=(TriviallyCopyableWithMoveCtor&&) = delete;
+
+	friend bool operator==(const TriviallyCopyableWithMoveCtor& lhs, const TriviallyCopyableWithMoveCtor& rhs) { return lhs.mValue == rhs.mValue; }
+
+	unsigned int mValue;
+};
+static_assert(eastl::is_trivially_copyable<TriviallyCopyableWithMoveCtor>::value, "TriviallyCopyableWithMoveCtor");
+static_assert(eastl::is_standard_layout<TriviallyCopyableWithMoveCtor>::value, "TriviallyCopyableWithMoveCtor");
+
+struct TriviallyCopyableWithMoveAssign {
+	TriviallyCopyableWithMoveAssign(unsigned int v) noexcept : mValue(v) {}
+
+	TriviallyCopyableWithMoveAssign& operator=(TriviallyCopyableWithMoveAssign&&) = default;
+
+	TriviallyCopyableWithMoveAssign() = delete;
+	TriviallyCopyableWithMoveAssign(const TriviallyCopyableWithMoveAssign&) = delete;
+	TriviallyCopyableWithMoveAssign(TriviallyCopyableWithMoveAssign&&) = delete;
+	TriviallyCopyableWithMoveAssign& operator=(const TriviallyCopyableWithMoveAssign&) = delete;
+
+	friend bool operator==(const TriviallyCopyableWithMoveAssign& lhs, const TriviallyCopyableWithMoveAssign& rhs) { return lhs.mValue == rhs.mValue; }
+
+	unsigned int mValue;
+};
+static_assert(eastl::is_trivially_copyable<TriviallyCopyableWithMoveAssign>::value, "TriviallyCopyableWithMoveAssign");
+static_assert(eastl::is_standard_layout<TriviallyCopyableWithMoveAssign>::value, "TriviallyCopyableWithMoveAssign");
+
+// useful for testing empty base optimization of types
+struct NoDataMembers {};
+static_assert(eastl::is_empty<NoDataMembers>::value, "empty");
 
 
 //////////////////////////////////////////////////////////////////////////////

@@ -4,6 +4,7 @@
 
 
 #include "EASTLTest.h"
+#include <EASTL/deque.h>
 #include <EASTL/iterator.h>
 #include <EASTL/vector.h>
 #include <EASTL/set.h>
@@ -15,12 +16,16 @@
 #include <EASTL/intrusive_list.h>
 #include <EASTL/memory.h>
 #include <EASTL/unique_ptr.h>
+#include <EASTL/algorithm.h>
+#include <EASTL/internal/generic_iterator.h>
 
 EA_DISABLE_ALL_VC_WARNINGS()
 #include <stdio.h>
 #include <string.h>
 EA_RESTORE_ALL_VC_WARNINGS()
 
+template <class T>
+using detect_iterator_traits_reference = typename eastl::iterator_traits<T>::reference;
 
 // This is used below, though is currently disabled as documented below.
 struct IListNode : public eastl::intrusive_list_node{};
@@ -181,7 +186,7 @@ int TestIterator_moveIterator()
 		// Check that we support iterators yielding plain value (typically a proxy-iterator).
 		struct FakeProxyIterator 
 		{
-			using iterator_category = eastl::forward_iterator_tag;
+			using iterator_category = EASTL_ITC_NS::forward_iterator_tag;
 			using difference_type   = ptrdiff_t;
 			using value_type        = int;
 			using pointer           = int;  // Note that we are yielding by value.
@@ -192,8 +197,8 @@ int TestIterator_moveIterator()
 			FakeProxyIterator& operator++() { return *this; }  
 			FakeProxyIterator operator++(int) { return {}; }
 
-			bool operator==(const FakeProxyIterator& rhs) { return true; };
-			bool operator!=(const FakeProxyIterator& rhs) { return false; };  
+			bool operator==(const FakeProxyIterator&) { return true; };
+			bool operator!=(const FakeProxyIterator&) { return false; };  
 		};
 
 		FakeProxyIterator it = {};
@@ -209,6 +214,17 @@ int TestIterator_moveIterator()
 
 		auto pCopiedX = *moveIter;
 		EATEST_VERIFY(pCopiedX == 42);
+	}
+
+	{
+		// test move_iterator usable in algorithms
+
+		MoveOnlyType moveableArray[] = {MoveOnlyType{1}, MoveOnlyType{2}, MoveOnlyType{3}};
+		MoveOnlyType destArray[] = {MoveOnlyType{0}, MoveOnlyType{0}, MoveOnlyType{0}};
+
+		eastl::copy(eastl::make_move_iterator(moveableArray), eastl::make_move_iterator(moveableArray + 3), destArray);
+		EATEST_VERIFY(VerifySequence(destArray, destArray + 3, {MoveOnlyType{1}, MoveOnlyType{2}, MoveOnlyType{3}},
+		                             "copy(move_iterator(...))"));
 	}
 
 	return nErrorCount;
@@ -246,6 +262,34 @@ int TestIterator()
 			EATEST_VERIFY(*itr == 0); ++itr;
 			EATEST_VERIFY( itr == src.rend());
 			EATEST_VERIFY( itr == eastl::make_reverse_iterator(src.begin()));
+		}
+	}
+
+	{
+		// Regression bug with assign/insert combined with reverse iterator.
+		eastl::vector<int> a;
+		for (int i = 0; i < 10; ++i) {
+			a.push_back(i);
+		}
+
+		eastl::deque<int> d;
+		d.assign(a.rbegin(), a.rend());
+		for (int i = 0; i < 10; ++i) {
+			EATEST_VERIFY(a[i] == d[a.size() - i - 1]);
+		}
+		d.insert(d.end(), a.rbegin(), a.rend());
+		for (int i = 0; i < 10; ++i) {
+			EATEST_VERIFY(a[i] == d[d.size() - i - 1]);
+		}
+
+		eastl::vector<int> b;
+		b.assign(a.rbegin(), a.rend());
+		for (int i = 0; i < 10; ++i) {
+			EATEST_VERIFY(a[i] == b[a.size() - i - 1]);
+		}
+		b.insert(b.end(), a.rbegin(), a.rend());
+		for (int i = 0; i < 10; ++i) {
+			EATEST_VERIFY(a[i] == b[b.size() - i - 1]);
 		}
 	}
 
@@ -323,7 +367,7 @@ int TestIterator()
 			EATEST_VERIFY(intSetIterator == eastl::end(intSet));
 
 			eastl::array<int, 0> intArray;
-			eastl::array<int>::iterator intArrayIterator = eastl::begin(intArray);
+			eastl::array<int, 0>::iterator intArrayIterator = eastl::begin(intArray);
 			EATEST_VERIFY(intArrayIterator == eastl::end(intArray));
 
 			eastl::intrusive_list<IListNode> intIList;
@@ -418,16 +462,20 @@ int TestIterator()
 		}
 	}
 
-
+	EASTL_INTERNAL_DISABLE_DEPRECATED() // '*': was declared deprecated
 	{
 		// is_iterator_wrapper
-		static_assert((eastl::is_iterator_wrapper<void>::value                                               == false),  "is_iterator_wrapper failure");
-		static_assert((eastl::is_iterator_wrapper<int>::value                                                == false),  "is_iterator_wrapper failure");
-		static_assert((eastl::is_iterator_wrapper<int*>::value                                               == false),  "is_iterator_wrapper failure");
-		static_assert((eastl::is_iterator_wrapper<eastl::array<char>*>::value                                == false),  "is_iterator_wrapper failure");
-		static_assert((eastl::is_iterator_wrapper<eastl::vector<char> >::value                               == false),  "is_iterator_wrapper failure");
-		static_assert((eastl::is_iterator_wrapper<eastl::generic_iterator<int*> >::value                     == true),   "is_iterator_wrapper failure");
-		static_assert((eastl::is_iterator_wrapper<eastl::move_iterator<eastl::array<int>::iterator> >::value == true),   "is_iterator_wrapper failure");
+		static_assert((eastl::is_iterator_wrapper<void>::value													== false),  "is_iterator_wrapper failure");
+		static_assert((eastl::is_iterator_wrapper<int>::value													== false),  "is_iterator_wrapper failure");
+		static_assert((eastl::is_iterator_wrapper<int*>::value													== false),  "is_iterator_wrapper failure");
+		static_assert((eastl::is_iterator_wrapper<eastl::array<int, 2>::iterator>::value							== false),   "is_iterator_wrapper failure");
+		static_assert((eastl::is_iterator_wrapper<eastl::array<char, 2>*>::value									== false),  "is_iterator_wrapper failure");
+		static_assert((eastl::is_iterator_wrapper<eastl::vector<char> >::value									== false),  "is_iterator_wrapper failure");
+		static_assert((eastl::is_iterator_wrapper<eastl::generic_iterator<int*> >::value						== true),   "is_iterator_wrapper failure");
+		static_assert((eastl::is_iterator_wrapper<eastl::move_iterator<eastl::array<int, 2>::iterator> >::value	== true),   "is_iterator_wrapper failure");
+		static_assert((eastl::is_iterator_wrapper<eastl::reverse_iterator<eastl::array<int, 2>::iterator> >::value == false),  "is_iterator_wrapper failure");
+		static_assert((eastl::is_iterator_wrapper<eastl::reverse_iterator<int*> >::value						== false),  "is_iterator_wrapper failure");
+		static_assert((eastl::is_iterator_wrapper<eastl::reverse_iterator<eastl::move_iterator<int*>> >::value  == true),   "is_iterator_wrapper failure");
 	}
 
 
@@ -455,7 +503,63 @@ int TestIterator()
 		intVector[0] = 20;
 		EATEST_VERIFY(*itVector == 20);
 		static_assert((eastl::is_same<decltype(eastl::unwrap_iterator(miIntVector)), eastl::vector<int>::iterator>::value == true),  "unwrap_iterator failure");
+
+		eastl::reverse_iterator<eastl::vector<int>::iterator> riIntVector = intVector.rbegin();
+		eastl::reverse_iterator<eastl::vector<int>::iterator> riUnwrapped = eastl::unwrap_iterator(riIntVector);
+		EATEST_VERIFY(*riUnwrapped == 19);
+		static_assert((eastl::is_same<decltype(eastl::unwrap_iterator(riIntVector)), eastl::reverse_iterator<eastl::vector<int>::iterator>>::value == true), "unwrap_iterator failure");
+
+		eastl::reverse_iterator<eastl::move_iterator<eastl::vector<int>::iterator>> rimiIntVec(miIntVector);
+		static_assert((eastl::is_same<decltype(eastl::unwrap_iterator(rimiIntVec)), eastl::reverse_iterator<eastl::vector<int>::iterator>>::value == true), "unwrap_iterator failure");
+
+		eastl::reverse_iterator<eastl::generic_iterator<int*>> rigiIntArray(giIntArray);
+		static_assert((eastl::is_same<decltype(eastl::unwrap_iterator(rigiIntArray)), eastl::reverse_iterator<int*>>::value == true), "unwrap_iterator failure");
+
+		eastl::deque<int> intDeque(3);
+		eastl::deque<int>::iterator begin = intDeque.begin();
+		eastl::generic_iterator<eastl::deque<int>::iterator> giWrappedBegin(begin);
+		static_assert((eastl::is_same<decltype(eastl::unwrap_iterator(giWrappedBegin)), eastl::deque<int>::iterator>::value == true), "unwrap_iterator failure");
+
+		eastl::deque<int>::iterator unwrappedBegin = eastl::unwrap_iterator(giWrappedBegin);
+		EATEST_VERIFY(begin == unwrappedBegin);
 	}
+
+	{
+		// unwrap_generic_iterator
+		int intArray[2] = {0, 1};
+		eastl::generic_iterator<int*> giIntArray(intArray);
+		int* pInt = eastl::unwrap_generic_iterator(giIntArray);
+		EATEST_VERIFY(*pInt == 0);
+		static_assert((eastl::is_same<decltype(eastl::unwrap_generic_iterator(giIntArray)), int*>::value == true),  "unwrap_iterator failure");
+
+		eastl::move_iterator<int*> miIntArray(intArray);
+		static_assert((eastl::is_same<decltype(eastl::unwrap_generic_iterator(miIntArray)), eastl::move_iterator<int*>>::value == true),  "unwrap_iterator failure");
+
+		eastl::vector<int> intVector(1, 1);
+		eastl::generic_iterator<eastl::vector<int>::iterator> giVectorInt(intVector.begin());
+		eastl::vector<int>::iterator it = unwrap_generic_iterator(giVectorInt);
+		EATEST_VERIFY(*it == 1);
+		static_assert((eastl::is_same<decltype(eastl::unwrap_generic_iterator(giVectorInt)), eastl::vector<int>::iterator>::value == true),  "unwrap_iterator failure");
+	}
+
+	{
+		// unwrap_move_iterator
+		int intArray[2] = {0, 1};
+		eastl::move_iterator<int*> miIntArray(intArray);
+		int* pInt = eastl::unwrap_move_iterator(miIntArray);
+		EATEST_VERIFY(*pInt == 0);
+		static_assert((eastl::is_same<decltype(eastl::unwrap_move_iterator(miIntArray)), int*>::value == true),  "unwrap_iterator failure");
+
+		eastl::generic_iterator<int*> giIntArray(intArray);
+		static_assert((eastl::is_same<decltype(eastl::unwrap_move_iterator(giIntArray)), eastl::generic_iterator<int*>>::value == true),  "unwrap_iterator failure");
+
+		eastl::vector<int> intVector(1, 1);
+		eastl::move_iterator<eastl::vector<int>::iterator> miVectorInt(intVector.begin());
+		eastl::vector<int>::iterator it = unwrap_move_iterator(miVectorInt);
+		EATEST_VERIFY(*it == 1);
+		static_assert((eastl::is_same<decltype(eastl::unwrap_move_iterator(miVectorInt)), eastl::vector<int>::iterator>::value == true),  "unwrap_iterator failure");
+    }
+    EASTL_INTERNAL_RESTORE_DEPRECATED()
 
 	{
 		// array cbegin - cend
@@ -466,6 +570,11 @@ int TestIterator()
 		
 		auto dist = eastl::distance(b,e);
 		EATEST_VERIFY(dist == 3);
+	}
+
+	{
+		// Regression test that ensure N3844 is working correctly.
+		static_assert(!eastl::is_detected<detect_iterator_traits_reference, int>::value, "detecting iterator_traits<int> should SFINAE gracefully.");
 	}
 
 	return nErrorCount;

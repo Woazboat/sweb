@@ -17,6 +17,12 @@ EA_DISABLE_ALL_VC_WARNINGS()
 #include <functional>
 EA_RESTORE_ALL_VC_WARNINGS()
 
+// 4512/4626 - 'class' : assignment operator could not be generated.  // This disabling would best be put elsewhere.
+EA_DISABLE_VC_WARNING(4512 4626);
+
+// contains tests for library features that are deprecated
+EASTL_INTERNAL_DISABLE_DEPRECATED() // *: was declared deprecated
+
 namespace
 {
 
@@ -134,6 +140,10 @@ int TestHashHelper(T val)
 
 	return nErrorCount;
 }
+
+// Required to test library functions that require the binary_function interface despite our removal of them from function objects such as eastl::less<T>
+template<typename BinaryFunction, typename Arg1, typename Arg2, typename Result>
+struct binary_function_adaptor : public eastl::binary_function<Arg1, Arg2, Result>, BinaryFunction {};
 
 ///////////////////////////////////////////////////////////////////////////////
 // TestFunctional
@@ -408,10 +418,10 @@ int TestFunctional()
 		TestClass  tc0, tc1, tc2;
 		TestClass* tcArray[3] = { &tc0, &tc1, &tc2 };
 
-		for_each(tcArray, tcArray + 3, mem_fun(&TestClass::Increment));
+		for_each(tcArray, tcArray + 3, mem_fn(&TestClass::Increment));
 		EATEST_VERIFY((tc0.mX == 38) && (tc1.mX == 38) && (tc2.mX == 38));
 
-		for_each(tcArray, tcArray + 3, mem_fun(&TestClass::IncrementConst));
+		for_each(tcArray, tcArray + 3, mem_fn(&TestClass::IncrementConst));
 		EATEST_VERIFY((tc0.mX == 39) && (tc1.mX == 39) && (tc2.mX == 39));
 	}
 
@@ -423,11 +433,11 @@ int TestFunctional()
 		int        intArray1[3] = { -1,  0,  2 };
 		int        intArray2[3] = { -9, -9, -9 };
 
-		transform(tcArray, tcArray + 3, intArray1, intArray2, mem_fun(&TestClass::MultiplyBy));
+		transform(tcArray, tcArray + 3, intArray1, intArray2, mem_fn(&TestClass::MultiplyBy));
 		EATEST_VERIFY((intArray2[0] == -37) && (intArray2[1] == 0) && (intArray2[2] == 74));
 
 		intArray2[0] = intArray2[1] = intArray2[2] = -9;
-		transform(tcArray, tcArray + 3, intArray1, intArray2, mem_fun(&TestClass::MultiplyByConst));
+		transform(tcArray, tcArray + 3, intArray1, intArray2, mem_fn(&TestClass::MultiplyByConst));
 		EATEST_VERIFY((intArray2[0] == -37) && (intArray2[1] == 0) && (intArray2[2] == 74));
 	}
 
@@ -436,10 +446,10 @@ int TestFunctional()
 		// mem_fun_ref (no argument version)
 		TestClass tcArray[3];
 
-		for_each(tcArray, tcArray + 3, mem_fun_ref(&TestClass::Increment));
+		for_each(tcArray, tcArray + 3, mem_fn(&TestClass::Increment));
 		EATEST_VERIFY((tcArray[0].mX == 38) && (tcArray[1].mX == 38) && (tcArray[2].mX == 38));
 
-		for_each(tcArray, tcArray + 3, mem_fun_ref(&TestClass::IncrementConst));
+		for_each(tcArray, tcArray + 3, mem_fn(&TestClass::IncrementConst));
 		EATEST_VERIFY((tcArray[0].mX == 39) && (tcArray[1].mX == 39) && (tcArray[2].mX == 39));
 	}
 
@@ -450,11 +460,11 @@ int TestFunctional()
 		int       intArray1[3] = { -1,  0,  2 };
 		int       intArray2[3] = { -9, -9, -9 };
 
-		transform(tcArray, tcArray + 3, intArray1, intArray2, mem_fun_ref(&TestClass::MultiplyBy));
+		transform(tcArray, tcArray + 3, intArray1, intArray2, mem_fn(&TestClass::MultiplyBy));
 		EATEST_VERIFY((intArray2[0] == -37) && (intArray2[1] == 0) && (intArray2[2] == 74));
 
 		intArray2[0] = intArray2[1] = intArray2[2] = -9;
-		transform(tcArray, tcArray + 3, intArray1, intArray2, mem_fun_ref(&TestClass::MultiplyByConst));
+		transform(tcArray, tcArray + 3, intArray1, intArray2, mem_fn(&TestClass::MultiplyByConst));
 		EATEST_VERIFY((intArray2[0] == -37) && (intArray2[1] == 0) && (intArray2[2] == 74));
 	}
 
@@ -485,10 +495,10 @@ int TestFunctional()
 		list<int> L;
 
 		eastl::list<int>::iterator in_range =
-			 eastl::find_if(L.begin(), L.end(),
-					 eastl::compose2(eastl::logical_and<bool>(),
-							  eastl::bind2nd(eastl::greater_equal<int>(), 1),
-							  eastl::bind2nd(eastl::less_equal<int>(), 10)));
+			eastl::find_if(L.begin(), L.end(),
+					 eastl::compose2(binary_function_adaptor<eastl::logical_and<bool>, bool, bool, bool>(),
+							  eastl::bind2nd(binary_function_adaptor<eastl::greater_equal<int>, int, int, bool>(), 1),
+							  eastl::bind2nd(binary_function_adaptor<eastl::less_equal<int>, int, int, bool>(), 10)));
 		EATEST_VERIFY(in_range == L.end());
 	}
 
@@ -540,7 +550,7 @@ int TestFunctional()
 			void Add(int addAmount) { value += addAmount; }
 			int GetValue() { return value; }
 			int& GetValueReference() { return value; }
-			void NoThrow(int inValue) EA_NOEXCEPT {}
+			void NoThrow(int) EA_NOEXCEPT {}
 			int value;
 		};
 
@@ -675,8 +685,8 @@ int TestFunctional()
 		{
 			struct TestInvokeConstAccess
 			{
-				void ConstMemberFunc(int i) const {}
-				void ConstVolatileMemberFunc(int i) const volatile {}
+				void ConstMemberFunc(int) const {}
+				void ConstVolatileMemberFunc(int) const volatile {}
 
 				int mI;
 			};
@@ -1095,6 +1105,107 @@ int TestFunctional()
 
 				EATEST_VERIFY(sCtorCount == sDtorCount);
 		}
+
+		#ifdef __cpp_deduction_guides
+		// eastl::function deduction guides
+		{
+			// Function pointer
+			{
+				eastl::function f{TestIntRet};
+				static_assert(eastl::is_same_v<decltype(f), eastl::function<int(int*)>>, "unexpected deduced function type.");
+			}
+
+			// Member function pointer
+			{
+				// No ref-qualifiers
+				{
+					struct CallableType
+					{
+						bool operator()(int*)
+						{
+							return false;
+						}
+					} callable;
+					
+					eastl::function f{callable};
+					static_assert(eastl::is_same_v<decltype(f), eastl::function<bool(int*)>>, "unexpected deduced function type.");
+				}
+				
+				
+				#define CHECK_DEDUCED_TYPE(QUALIFIERS) \
+				{ \
+					struct CallableType \
+					{ \
+						bool operator()(int*) QUALIFIERS \
+						{ \
+							return false; \
+						} \
+					} callable; \
+					eastl::function f{callable}; \
+					static_assert(eastl::is_same_v<decltype(f), eastl::function<bool(int*)>>, "unexpected deduced function type."); \
+				}
+
+				// Some of the following tests are disabled because you cannot create an eastl::function out of a callable with those qualifiers.
+				// The problem isn't due to the deduction guides themselves but the implementation of eastl::function and eastl::invoke_impl.
+				// TODO: as soon as all of this permutations are working, we should be able to use EASTL_GENERATE_MEMBER_FUNCTION_VARIANTS in
+				// function_detail.h to generate all of those.
+				CHECK_DEDUCED_TYPE(const)
+				CHECK_DEDUCED_TYPE(volatile)
+				CHECK_DEDUCED_TYPE(const volatile)
+				// CHECK_RETURN_TYPE(&)
+				CHECK_DEDUCED_TYPE(const&)
+				// CHECK_RETURN_TYPE(volatile&)
+				// CHECK_RETURN_TYPE(const volatile&)
+				// CHECK_RETURN_TYPE(&&)
+				// CHECK_RETURN_TYPE(const&&)
+				// CHECK_RETURN_TYPE(volatile&&)
+				// CHECK_RETURN_TYPE(const volatile&&)
+				CHECK_DEDUCED_TYPE(noexcept)
+				CHECK_DEDUCED_TYPE(const noexcept)
+				CHECK_DEDUCED_TYPE(volatile noexcept)
+				CHECK_DEDUCED_TYPE(const volatile noexcept)
+				// CHECK_RETURN_TYPE(& noexcept)
+				CHECK_DEDUCED_TYPE(const& noexcept)
+				// CHECK_RETURN_TYPE(volatile& noexcept)
+				// CHECK_RETURN_TYPE(const volatile& noexcept)
+				// CHECK_RETURN_TYPE(&& noexcept)
+				// CHECK_RETURN_TYPE(const&& noexcept)
+				// CHECK_RETURN_TYPE(volatile&& noexcept)
+				// CHECK_RETURN_TYPE(const volatile&& noexcept)
+			
+				#undef CHECK_DEDUCED_TYPE
+			}
+		}
+		#endif // __cpp_deduction_guides
+
+		#if EASTL_RTTI_ENABLED
+		{
+			struct Functor { int operator()() { return 42; } };
+			struct Functor2 { int operator()() { return 43; } };
+
+			eastl::function<int(void)> fn = Functor();
+
+			const std::type_info& type = typeid(Functor);
+			const std::type_info& targetType = fn.target_type();
+			EATEST_VERIFY(targetType == type);
+
+
+			Functor* target = fn.target<Functor>();
+			EATEST_VERIFY(target != nullptr);
+
+			Functor2* target2 = fn.target<Functor2>();
+			EATEST_VERIFY(target2 == nullptr);
+
+			// This tests the `const` overloads
+			const auto& constFn = fn;
+
+			const Functor* constTarget = constFn.target<Functor>();
+			EATEST_VERIFY(constTarget != nullptr);
+
+			const Functor2* constTarget2 = constFn.target<Functor2>();
+			EATEST_VERIFY(constTarget2 == nullptr);
+		}
+		#endif
 	}
 
 	// Checking _MSC_EXTENSIONS is required because the Microsoft calling convention classifiers are only available when
@@ -1381,6 +1492,82 @@ int TestFunctional()
 			result = eastl::logical_not<>{}(false);
 			EATEST_VERIFY(result);
 		}
+
+		// eastl::bit_and
+		{
+			EATEST_VERIFY(eastl::bit_and<char>{}(0x00, 0x00) == 0x00);
+			EATEST_VERIFY(eastl::bit_and<char>{}(0x11, 0x00) == 0x00);
+			EATEST_VERIFY(eastl::bit_and<char>{}(0x01, 0x10) == 0x00);
+			EATEST_VERIFY(eastl::bit_and<char>{}(0x11, 0x01) == 0x01);
+			EATEST_VERIFY(eastl::bit_and<char>{}(0x01, 0x11) == 0x01);
+			EATEST_VERIFY(eastl::bit_and<char>{}(0x11, 0x11) == 0x11);
+		}
+
+		// eastl::bit_and<void>
+		{
+			EATEST_VERIFY(eastl::bit_and<void>{}(0x00, 0x00) == 0x00);
+			EATEST_VERIFY(eastl::bit_and<void>{}(0x11, 0x00) == 0x00);
+			EATEST_VERIFY(eastl::bit_and<void>{}(0x01, 0x10) == 0x00);
+			EATEST_VERIFY(eastl::bit_and<void>{}(0x11, 0x01) == 0x01);
+			EATEST_VERIFY(eastl::bit_and<void>{}(0x01, 0x11) == 0x01);
+			EATEST_VERIFY(eastl::bit_and<void>{}(0x11, 0x11) == 0x11);
+		}
+
+		// eastl::bit_or
+		{
+			EATEST_VERIFY(eastl::bit_or<char>{}(0x00, 0x00) == 0x00);
+			EATEST_VERIFY(eastl::bit_or<char>{}(0x11, 0x00) == 0x11);
+			EATEST_VERIFY(eastl::bit_or<char>{}(0x01, 0x10) == 0x11);
+			EATEST_VERIFY(eastl::bit_or<char>{}(0x11, 0x01) == 0x11);
+			EATEST_VERIFY(eastl::bit_or<char>{}(0x01, 0x11) == 0x11);
+			EATEST_VERIFY(eastl::bit_or<char>{}(0x11, 0x11) == 0x11);
+		}
+
+		// eastl::bit_or<void>
+		{
+			EATEST_VERIFY(eastl::bit_or<void>{}(0x00, 0x00) == 0x00);
+			EATEST_VERIFY(eastl::bit_or<void>{}(0x11, 0x00) == 0x11);
+			EATEST_VERIFY(eastl::bit_or<void>{}(0x01, 0x10) == 0x11);
+			EATEST_VERIFY(eastl::bit_or<void>{}(0x11, 0x01) == 0x11);
+			EATEST_VERIFY(eastl::bit_or<void>{}(0x01, 0x11) == 0x11);
+			EATEST_VERIFY(eastl::bit_or<void>{}(0x11, 0x11) == 0x11);
+		}
+
+		// eastl::bit_xor
+		{
+			EATEST_VERIFY(eastl::bit_xor<char>{}(0x00, 0x00) == 0x00);
+			EATEST_VERIFY(eastl::bit_xor<char>{}(0x11, 0x00) == 0x11);
+			EATEST_VERIFY(eastl::bit_xor<char>{}(0x01, 0x10) == 0x11);
+			EATEST_VERIFY(eastl::bit_xor<char>{}(0x11, 0x01) == 0x10);
+			EATEST_VERIFY(eastl::bit_xor<char>{}(0x01, 0x11) == 0x10);
+			EATEST_VERIFY(eastl::bit_xor<char>{}(0x11, 0x11) == 0x00);
+		}
+
+		// eastl::bit_xor<void>
+		{
+			EATEST_VERIFY(eastl::bit_xor<void>{}(0x00, 0x00) == 0x00);
+			EATEST_VERIFY(eastl::bit_xor<void>{}(0x11, 0x00) == 0x11);
+			EATEST_VERIFY(eastl::bit_xor<void>{}(0x01, 0x10) == 0x11);
+			EATEST_VERIFY(eastl::bit_xor<void>{}(0x11, 0x01) == 0x10);
+			EATEST_VERIFY(eastl::bit_xor<void>{}(0x01, 0x11) == 0x10);
+			EATEST_VERIFY(eastl::bit_xor<void>{}(0x11, 0x11) == 0x00);
+		}
+
+		// eastl::bit_not
+		{
+			EATEST_VERIFY(eastl::bit_not<unsigned char>{}(0x0) == (unsigned char) 0xFF);
+			EATEST_VERIFY(eastl::bit_not<unsigned char>{}(0x0F) == (unsigned char) 0xF0);
+			EATEST_VERIFY(eastl::bit_not<unsigned char>{}(0xF0) == (unsigned char) 0x0F);
+			EATEST_VERIFY(eastl::bit_not<unsigned char>{}(0xFF) == (unsigned char) 0x0);
+		}
+
+		// eastl::bit_not<void>
+		{
+			EATEST_VERIFY((unsigned char)eastl::bit_not<void>{}(0x0) == (unsigned char)0xFF);
+			EATEST_VERIFY((unsigned char)eastl::bit_not<void>{}(0x0F) == (unsigned char)0xF0);
+			EATEST_VERIFY((unsigned char)eastl::bit_not<void>{}(0xF0) == (unsigned char)0x0F);
+			EATEST_VERIFY((unsigned char)eastl::bit_not<void>{}(0xFF) == (unsigned char)0x0);
+		}
 	}
 	#endif
 
@@ -1491,5 +1678,43 @@ struct TestInvokeResult
 };
 
 template struct eastl::invoke_result<decltype(&TestInvokeResult::f), TestInvokeResult, void>;
+
 static_assert(!eastl::is_invocable<decltype(&TestInvokeResult::f), TestInvokeResult, void>::value, "incorrect value for is_invocable");
+static_assert(!eastl::is_invocable<decltype(&TestInvokeResult::f), TestInvokeResult, int, int>::value, "incorrect value for is_invocable");
 static_assert(eastl::is_invocable<decltype(&TestInvokeResult::f), TestInvokeResult, int>::value, "incorrect value for is_invocable");
+
+static_assert(!eastl::is_invocable_r<int, decltype(&TestInvokeResult::f), TestInvokeResult, void>::value, "incorrect value for is_invocable_r");
+static_assert(!eastl::is_invocable_r<void, decltype(&TestInvokeResult::f), TestInvokeResult, int, int>::value, "incorrect value for is_invocable_r");
+static_assert(eastl::is_invocable_r<void, decltype(&TestInvokeResult::f), TestInvokeResult, int>::value, "incorrect value for is_invocable_r");
+static_assert(eastl::is_invocable_r<int, decltype(&TestInvokeResult::f), TestInvokeResult, int>::value, "incorrect value for is_invocable_r");
+
+struct TestCallableInvokeResult
+{
+	int operator()(int i) {return i;}
+};
+
+template struct eastl::invoke_result<TestCallableInvokeResult, void>;
+
+static_assert(!eastl::is_invocable<TestCallableInvokeResult, void>::value, "incorrect value for is_invocable");
+static_assert(!eastl::is_invocable<TestCallableInvokeResult, int, int>::value, "incorrect value for is_invocable");
+static_assert(eastl::is_invocable<TestCallableInvokeResult, int>::value, "incorrect value for is_invocable");
+
+static_assert(!eastl::is_invocable_r<int, TestCallableInvokeResult, void>::value, "incorrect value for is_invocable_r");
+static_assert(!eastl::is_invocable_r<void, TestCallableInvokeResult, int, int>::value, "incorrect value for is_invocable_r");
+static_assert(eastl::is_invocable_r<void, TestCallableInvokeResult, int>::value, "incorrect value for is_invocable_r");
+static_assert(eastl::is_invocable_r<int, TestCallableInvokeResult, int>::value, "incorrect value for is_invocable_r");
+
+typedef decltype(eastl::ref(eastl::declval<TestCallableInvokeResult&>())) TestCallableRefInvokeResult;
+
+static_assert(!eastl::is_invocable<TestCallableRefInvokeResult, void>::value, "incorrect value for is_invocable");
+static_assert(!eastl::is_invocable<TestCallableRefInvokeResult, int, int>::value, "incorrect value for is_invocable");
+static_assert(eastl::is_invocable<TestCallableRefInvokeResult, int>::value, "incorrect value for is_invocable");
+
+static_assert(!eastl::is_invocable_r<int, TestCallableRefInvokeResult, void>::value, "incorrect value for is_invocable_r");
+static_assert(!eastl::is_invocable_r<void, TestCallableRefInvokeResult, int, int>::value, "incorrect value for is_invocable_r");
+static_assert(eastl::is_invocable_r<void, TestCallableRefInvokeResult, int>::value, "incorrect value for is_invocable_r");
+static_assert(eastl::is_invocable_r<int, TestCallableRefInvokeResult, int>::value, "incorrect value for is_invocable_r");
+
+EASTL_INTERNAL_RESTORE_DEPRECATED()
+
+EA_RESTORE_VC_WARNING();

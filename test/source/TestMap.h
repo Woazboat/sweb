@@ -597,17 +597,17 @@ int TestMapSearch()
 		for(i = 0; i < 1000; i++)
 		{
 			TC k = typename T1::key_type(i);
-			it = t1A.find_as(k, eastl::less_2<typename T1::key_type, TC>());
+			it = t1A.find_as(k, eastl::less<>());
 
 			EATEST_VERIFY(it != t1A.end());
 			EATEST_VERIFY(it->first  == k);
 			EATEST_VERIFY(it->second == k);
 		}
 
-		it = t1A.find_as(TC(typename T1::key_type(-1)), eastl::less_2<typename T1::key_type, TC>());
+		it = t1A.find_as(TC(typename T1::key_type(-1)), eastl::less<>());
 		EATEST_VERIFY(it == t1A.end());
 
-		it = t1A.find_as(TC(typename T1::key_type(1001)), eastl::less_2<typename T1::key_type, TC>());
+		it = t1A.find_as(TC(typename T1::key_type(1001)), eastl::less<>());
 		EATEST_VERIFY(it == t1A.end());
 
 
@@ -1248,11 +1248,18 @@ int TestMapCpp17()
 			VERIFY(toMap.size() == 1);
 		}
 
+		auto ctorCount = TestObject::sTOCtorCount;
+
 		{ // verify duplicate not inserted
 			auto result = toMap.try_emplace(7, mapped_type(7)); // test fwding to copy-ctor
 			VERIFY(!result.second);
 			VERIFY(result.first->second == mapped_type(7));
 			VERIFY(toMap.size() == 1);
+
+			// we explicitly constructed an element for the parameter
+			// and one for the VERIFY check
+			ctorCount += 2;
+			VERIFY(ctorCount == TestObject::sTOCtorCount);
 		}
 
 		{ // verify duplicate not inserted
@@ -1261,6 +1268,9 @@ int TestMapCpp17()
 			VERIFY(result->first == 7);
 			VERIFY(result->second == mapped_type(7));
 			VERIFY(toMap.size() == 1);
+			// we explicitly constructed an element for the VERIFY check
+			++ctorCount;
+			VERIFY(ctorCount == TestObject::sTOCtorCount);
 		}
 
 		{ // verify duplicate not inserted
@@ -1269,20 +1279,36 @@ int TestMapCpp17()
 			VERIFY(result->first == 7);
 			VERIFY(result->second == mapped_type(7));
 			VERIFY(toMap.size() == 1);
+
+			// we explicitly constructed an element for the parameter
+			// and one for the VERIFY check
+			ctorCount += 2;
+			VERIFY(ctorCount == TestObject::sTOCtorCount);
 		}
 
 		{
 			{
-				auto result = toMap.try_emplace(8, 8); 
+				auto result = toMap.try_emplace(8, 8);
+				// emplacing a new value should call exactly one constructor,
+				// when the value is constructed in place inside the container.
+				++ctorCount;
 				VERIFY(result.second);
 				VERIFY(result.first->second == mapped_type(8));
+				// One more constructor for the temporary in the VERIFY
+				++ctorCount;
 				VERIFY(toMap.size() == 2);
+				VERIFY(ctorCount == TestObject::sTOCtorCount);
 			}
 			{
-				auto result = toMap.try_emplace(9, mapped_type(9)); 
+				auto result = toMap.try_emplace(9, mapped_type(9));
 				VERIFY(result.second);
 				VERIFY(result.first->second == mapped_type(9));
 				VERIFY(toMap.size() == 3);
+				// one more constructor for the temporary argument,
+				// one for moving it to the container, and one for the VERIFY
+				ctorCount += 3;
+				VERIFY(ctorCount == TestObject::sTOCtorCount);
+
 			}
 		}
 	}
@@ -1358,6 +1384,52 @@ int TestMapCpp17()
 
 	EATEST_VERIFY(TestObject::IsClear());
 	TestObject::Reset();
+
+	return nErrorCount;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// TestMapAccess
+//
+// This function is designed to work with map, fixed_map, hash_map, fixed_hash_map, unordered_map.
+//
+// Tests for element access: operator[] and at()
+template <typename T1>
+int TestMapAccess()
+{
+	int nErrorCount = 0;
+
+	typedef T1 TOMap;
+	typedef typename TOMap::key_type key_type;
+	typedef typename TOMap::mapped_type mapped_type;
+
+	TOMap map1;
+	map1[key_type(1)] = mapped_type(1);
+	map1[key_type(3)] = mapped_type(3);
+
+#if EASTL_EXCEPTIONS_ENABLED
+	EATEST_VERIFY_THROW(map1.at(key_type(0)));
+	EATEST_VERIFY_THROW(map1.at(key_type(2)));
+	EATEST_VERIFY_THROW(map1.at(key_type(4)));
+#endif
+	map1[key_type(0)] = mapped_type(1);
+#if EASTL_EXCEPTIONS_ENABLED
+	EATEST_VERIFY_NOTHROW(map1.at(key_type(0)));
+	EATEST_VERIFY_NOTHROW(map1.at(key_type(1)));
+	EATEST_VERIFY_NOTHROW(map1.at(key_type(3)));
+#endif
+	EATEST_VERIFY(map1.at(key_type(0)) == mapped_type(1));
+	EATEST_VERIFY(map1.at(key_type(1)) == mapped_type(1));
+	EATEST_VERIFY(map1.at(key_type(3)) == mapped_type(3));
+
+	const TOMap map2;
+	const TOMap map3(map1);
+
+#if EASTL_EXCEPTIONS_ENABLED
+	EATEST_VERIFY_THROW(map2.at(key_type(0)));
+	EATEST_VERIFY_NOTHROW(map3.at(key_type(0)));
+#endif
+	EATEST_VERIFY(map3.at(key_type(0)) == mapped_type(1));
 
 	return nErrorCount;
 }

@@ -133,6 +133,23 @@ eastl::late_constructed<LCTestObject, false, true> gLCTestObjectFalseTrue;
 eastl::late_constructed<LCTestObject, false, false> gLCTestObjectFalseFalse;
 eastl::late_constructed<LCTestObject, true, false> gLCTestObjectTrueFalse;
 
+struct TypeWithPointerTraits {};
+
+namespace eastl
+{
+	template <>
+	struct pointer_traits<TypeWithPointerTraits>
+	{
+		// Note: only parts of the traits we are interested to test are defined here.
+		static const int* to_address(TypeWithPointerTraits)
+		{
+			return &a;
+		}
+
+		inline static constexpr int a = 42;
+	};
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // TestMemory
@@ -145,6 +162,7 @@ int TestMemory()
 
 	TestObject::Reset();
 
+	EASTL_INTERNAL_DISABLE_DEPRECATED() // 'eastl::get_temporary_buffer': was declared deprecated
 	{
 		// get_temporary_buffer(ptrdiff_t n, size_t alignment, size_t alignmentOffset, char* pName);
 
@@ -157,6 +175,7 @@ int TestMemory()
 		memset(pr2.first, 0, 300 * sizeof(TestObject));
 		return_temporary_buffer(pr2.first, pr2.second);
 	}
+	EASTL_INTERNAL_RESTORE_DEPRECATED()
 
 	EATEST_VERIFY(TestObject::IsClear());
 	TestObject::Reset();
@@ -375,6 +394,7 @@ int TestMemory()
 	// inline ForwardIteratorDest uninitialized_relocate(ForwardIterator first, ForwardIterator last, ForwardIteratorDest dest)
 
 	// This test does little more than verify that the code compiles.
+	EASTL_INTERNAL_DISABLE_DEPRECATED() // '*': was declared deprecated
 	int* pEnd = eastl::uninitialized_relocate_start<int*, int*>((int*)NULL, (int*)NULL, (int*)NULL);
 	EATEST_VERIFY(pEnd == NULL);
 
@@ -386,50 +406,82 @@ int TestMemory()
 
 	pEnd = eastl::uninitialized_relocate<int*, int*>((int*)NULL, (int*)NULL, (int*)NULL);
 	EATEST_VERIFY(pEnd == NULL);
+	EASTL_INTERNAL_RESTORE_DEPRECATED()
 
 
 
-	// template <typename InputIterator, typename ForwardIterator>
-	// ForwardIterator uninitialized_copy(InputIterator sourceFirst, InputIterator sourceLast, ForwardIterator destination);
+	{
+		// template <typename InputIterator, typename ForwardIterator>
+		// ForwardIterator uninitialized_copy(InputIterator sourceFirst, InputIterator sourceLast, ForwardIterator destination);
 
-	pEnd = eastl::uninitialized_copy<int*, int*>((int*)NULL, (int*)NULL, (int*)NULL);
-	EATEST_VERIFY(pEnd == NULL);
+		pEnd = eastl::uninitialized_copy<int*, int*>((int*)NULL, (int*)NULL, (int*)NULL);
+		EATEST_VERIFY(pEnd == NULL);
 
+		int intArray1[] = { 3, 2, 6, 5, 4, 1 };
+		int intArray2[] = { 1, 2, 3, 4, 5, 6 };
+
+		uninitialized_copy(intArray2, intArray2 + 6, intArray1);
+		EATEST_VERIFY(VerifySequence(intArray1, intArray1 + 6, int(), "uninitialized_copy", 1, 2, 3, 4, 5, 6, -1));
+
+		uninitialized_copy(eastl::move_iterator{ intArray2 }, eastl::move_iterator{ intArray2 + 6 }, intArray1);
+		EATEST_VERIFY(VerifySequence(intArray1, intArray1 + 6, int(), "uninitialized_copy", 1, 2, 3, 4, 5, 6, -1));
+	}
+
+	{
+		// uninitialized_copy_n
+
+		int intArray1[] = { 3, 2, 6, 5, 4, 1 };
+		int intArray2[] = { 1, 2, 3, 4, 5, 6 };
+		uninitialized_copy_n(intArray2, 6, intArray1);
+		EATEST_VERIFY(VerifySequence(intArray1, intArray1 + 6, int(), "uninitialized_copy_n", 1, 2, 3, 4, 5, 6, -1));
+	}
 
 
 	// template <typename First, typename Last, typename Result>
 	// Result uninitialized_copy_ptr(First first, Last last, Result result)
-
+	EASTL_INTERNAL_DISABLE_DEPRECATED() // '*': was declared deprecated
 	pEnd = eastl::uninitialized_copy_ptr<int*, int*, int*>((int*)NULL, (int*)NULL, (int*)NULL);
 	EATEST_VERIFY(pEnd == NULL);
+	EASTL_INTERNAL_RESTORE_DEPRECATED()
 
 
+	{
+		// template <typename ForwardIterator, typename T>
+		// void uninitialized_fill(ForwardIterator first, ForwardIterator last, const T& value)
 
-	// template <typename ForwardIterator, typename T>
-	// void uninitialized_fill(ForwardIterator first, ForwardIterator last, const T& value)
+		eastl::uninitialized_fill<int*, int>((int*)NULL, (int*)NULL, (int)0);
 
-	eastl::uninitialized_fill<int*, int>((int*)NULL, (int*)NULL, (int)0);
-
+		int intArray[] = { 3, 2, 6, 5, 4, 1 };
+		uninitialized_fill(intArray, intArray + 6, 4);
+		EATEST_VERIFY(VerifySequence(intArray, intArray + 6, int(), "uninitialized_fill", 4, 4, 4, 4, 4, 4, -1));
+	}
 
 
 	// template <typename T>
 	// void uninitialized_fill_ptr(T* first, T* last, const T& value)
-
+	EASTL_INTERNAL_DISABLE_DEPRECATED() // '*': was declared deprecated
 	eastl::uninitialized_fill_ptr<int>((int*)NULL, (int*)NULL, (int)0);
+	EASTL_INTERNAL_RESTORE_DEPRECATED()
 
 
+	{
+		// template <typename ForwardIterator, typename Count, typename T>
+		// void uninitialized_fill_n(ForwardIterator first, Count n, const T& value)
 
-	// template <typename ForwardIterator, typename Count, typename T>
-	// void uninitialized_fill_n(ForwardIterator first, Count n, const T& value)
+		eastl::uninitialized_fill_n<int*, int, int>((int*)NULL, (int)0, (int)0);
 
-	eastl::uninitialized_fill_n<int*, int, int>((int*)NULL, (int)0, (int)0);
-
+		int intArray[] = { 3, 2, 6, 5, 4, 1 };
+		uninitialized_fill_n(intArray, 6, 5);
+		EATEST_VERIFY(VerifySequence(intArray, intArray + 6, int(), "uninitialized_fill_n", 5, 5, 5, 5, 5, 5, -1));
+	}
 
 
 	// template <typename T, typename Count>
 	// void uninitialized_fill_n_ptr(T* first, Count n, const T& value)
 
+	EASTL_INTERNAL_DISABLE_DEPRECATED() // '*': was declared deprecated
 	eastl::uninitialized_fill_n_ptr<int, int>((int*)NULL, (int)0, (int)0);
+	EASTL_INTERNAL_RESTORE_DEPRECATED()
 
 
 
@@ -485,6 +537,10 @@ int TestMemory()
 
 		eastl::uninitialized_value_construct(pTestMemory, pTestMemory + 10);
 		EATEST_VERIFY(TestObject::sTODefaultCtorCount == 10);
+
+		int intArray[] = { 3, 2, 6, 5, 4, 1 };
+		uninitialized_value_construct(intArray, intArray + 6);
+		EATEST_VERIFY(VerifySequence(intArray, intArray + 6, int(), "uninitialized_value_construct", 0, 0, 0, 0, 0, 0, -1));
 	}
 
 	// uninitialized_value_construct_n
@@ -496,6 +552,10 @@ int TestMemory()
 		auto endIter = eastl::uninitialized_value_construct_n(pTestMemory, 5);
 		EATEST_VERIFY(TestObject::sTODefaultCtorCount == 5);
 		EATEST_VERIFY(endIter == (pTestMemory + 5));
+
+		int intArray[] = { 3, 2, 6, 5, 4, 1 };
+		uninitialized_value_construct_n(intArray, 6);
+		EATEST_VERIFY(VerifySequence(intArray, intArray + 6, int(), "uninitialized_value_construct_n", 0, 0, 0, 0, 0, 0, -1));
 	}
 
 	// Verify that uninitialized_value_construct does not do any additional initialization besides zero-initialization.
@@ -549,6 +609,26 @@ int TestMemory()
 		{
 			EATEST_VERIFY(pTestMemory[i].mV == 42); // verify original memset value is intact 
 		}
+	}
+
+	{
+		// uninitialized_move
+
+		int intArray1[] = { 3, 2, 6, 5, 4, 1 };
+		int intArray2[] = { 1, 2, 3, 4, 5, 6 };
+
+		uninitialized_move(intArray2, intArray2 + 6, intArray1);
+		EATEST_VERIFY(VerifySequence(intArray1, intArray1 + 6, int(), "uninitialized_move", 1, 2, 3, 4, 5, 6, -1));
+	}
+
+	{
+		// uninitialized_move_n
+
+		int intArray1[] = { 3, 2, 6, 5, 4, 1 };
+		int intArray2[] = { 1, 2, 3, 4, 5, 6 };
+
+		uninitialized_move_n(intArray2, 6, intArray1);
+		EATEST_VERIFY(VerifySequence(intArray1, intArray1 + 6, int(), "uninitialized_move_n", 1, 2, 3, 4, 5, 6, -1));
 	}
 
 	// template <typename T>
@@ -684,6 +764,33 @@ int TestMemory()
 		}
 	}
 
+	// to_address
+	{
+		// Normal pointers.
+		int a;
+		int* ptrA = &a;
+		EATEST_VERIFY(ptrA == to_address(ptrA));
+
+		// Smart pointer.
+		struct MockSmartPointer
+		{
+			const int* operator->() const
+			{
+				return &a;
+			}
+
+			int a = 42;
+		};
+
+		MockSmartPointer sp;
+		EATEST_VERIFY(&sp.a == to_address(sp));
+
+		// Type with specialized pointer_traits.
+		TypeWithPointerTraits t;
+		const int* result = to_address(t);
+		EATEST_VERIFY(result != nullptr && *result == 42);
+	}
+
 	{
 		// Test that align handles integral overflow correctly and returns NULL.
 		void*  ptr;
@@ -693,14 +800,14 @@ int TestMemory()
 
 		space    = 64;
 		ptr      = 0;
-		ptr      = (char*)ptr - space;
+		ptr      = (void*)((uintptr_t)ptr - (uintptr_t)space);
 		ptrSaved = ptr;
 		pResult  = eastl::align(1, space + 1, ptr, space);             // Possible alignment, impossible size due to wraparound.
 		EATEST_VERIFY((pResult == NULL) && (ptr == ptrSaved));
 
 		space    = 64;
 		ptr      = 0;
-		ptr      = (char*)ptr - space;
+		ptr      = (void*)((uintptr_t)ptr - (uintptr_t)space);
 		ptrSaved = ptr;
 		pResult  = eastl::align(space * 2, 32, ptr, space);            // Impossible alignment due to wraparound, possible size.
 		EATEST_VERIFY((pResult == NULL) && (ptr == ptrSaved));

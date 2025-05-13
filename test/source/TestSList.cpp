@@ -286,18 +286,16 @@ int TestSList()
 
 
 	//     void emplace_front(Args&&... args);
-	//     void emplace_front(value_type&& value);
-	//     void emplace_front(const value_type& value);
 	{
 		slist<TestObj> list1;
-		list1.emplace_front(42);
+		VERIFY(list1.emplace_front(42).mI == 42);
 		VERIFY(list1.front().mI == 42);
 		VERIFY(list1.front().mCopyCtor == 0);
 		VERIFY(list1.front().mMoveCtor == 0);
 		VERIFY(list1.size() == 1);
 		VERIFY(list1.validate());
 
-		list1.emplace_front(1,2,3,4);
+		VERIFY(list1.emplace_front(1,2,3,4).mI == (1 + 2 + 3 + 4));
 		VERIFY(list1.front().mCopyCtor == 0);
 		VERIFY(list1.front().mMoveCtor == 0);
 		VERIFY(list1.front().mI == (1+2+3+4));
@@ -756,6 +754,38 @@ int TestSList()
 		}
 	}
 
+	// size_type unique();
+	{
+		slist<int> ref = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+		slist<int> a = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 3, 3, 3,
+							  4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 7, 8, 9, 9, 9, 9, 9, 9, 9, 9 };
+		VERIFY(a.unique() == 34);
+		VERIFY(a == ref);
+	}
+
+	// size_type unique(BinaryPredicate);
+	{
+		static bool bBreakComparison;
+		struct A
+		{
+			int mValue;
+			bool operator==(const A& other) const { return bBreakComparison ? false : mValue == other.mValue; }
+		};
+
+		slist<A> ref = { {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9} };
+		slist<A> a = { {0}, {0}, {0}, {0}, {0}, {0}, {1}, {2}, {2}, {2}, {2}, {3}, {4}, {5},
+							{5}, {5}, {5}, {5}, {6}, {7}, {7}, {7}, {7}, {8}, {9}, {9}, {9} };
+
+		bBreakComparison = true;
+		VERIFY(a.unique() == 0); // noop because broken comparison operator
+		VERIFY(a != ref);
+
+		VERIFY(a.unique([](const A& lhs, const A& rhs) { return lhs.mValue == rhs.mValue; }) == 17);
+
+		bBreakComparison = false;
+		VERIFY(a == ref);
+	}
+
 	// void sort();
 	{
 		slist<int> list1 = {0, 1, 2, 2, 2, 3, 4, 5, 6, 7, 8, 9, 9, 8, 7, 6, 5, 4, 3, 2, 2, 2, 1, 0};
@@ -795,34 +825,132 @@ int TestSList()
 		{
 			slist<int> l = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
-			eastl::erase(l, 5);
+			auto numErased = eastl::erase(l, 5);
 			VERIFY((l == slist<int>{0, 1, 2, 3, 4, 6, 7, 8, 9}));
+		    VERIFY(numErased == 1);
 
-			eastl::erase(l, 7);
+			numErased = eastl::erase(l, 7);
 			VERIFY((l == slist<int>{0, 1, 2, 3, 4, 6, 8, 9}));
+		    VERIFY(numErased == 1);
 
-			eastl::erase(l, 2);
+			numErased = eastl::erase(l, 2);
 			VERIFY((l == slist<int>{0, 1, 3, 4, 6, 8, 9}));
+		    VERIFY(numErased == 1);
 
-			eastl::erase(l, 0);
+			numErased = eastl::erase(l, 0);
 			VERIFY((l == slist<int>{1, 3, 4, 6, 8, 9}));
+		    VERIFY(numErased == 1);
 
-			eastl::erase(l, 4);
+			numErased = eastl::erase(l, 4);
 			VERIFY((l == slist<int>{1, 3, 6, 8, 9}));
+		    VERIFY(numErased == 1);
 		}
 
 		{
 			slist<int> l = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
-			eastl::erase_if(l, [](auto e) { return e % 2 == 0; });
+			auto numErased = eastl::erase_if(l, [](auto e) { return e % 2 == 0; });
 			VERIFY((l == slist<int>{1, 3, 5, 7, 9}));
+		    VERIFY(numErased == 5);
 
-			eastl::erase_if(l, [](auto e) { return e == 5; });
+			numErased = eastl::erase_if(l, [](auto e) { return e == 5; });
 			VERIFY((l == slist<int>{1, 3, 7, 9}));
+		    VERIFY(numErased == 1);
 
-			eastl::erase_if(l, [](auto e) { return e % 3 == 0; });
+			numErased = eastl::erase_if(l, [](auto e) { return e % 3 == 0; });
 			VERIFY((l == slist<int>{1, 7}));
+		    VERIFY(numErased == 2);
 		}
+	}
+
+	{ // Test global operators
+		{
+			slist<int> list1 = {0, 1, 2, 3, 4, 5};
+			slist<int> list2 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+			slist<int> list3 = {5, 6, 7, 8};
+
+			VERIFY(list1 == list1);
+			VERIFY(!(list1 != list1));
+
+			VERIFY(list1 != list2);
+			VERIFY(list2 != list3);
+			VERIFY(list1 != list3);
+
+			VERIFY(list1 < list2);
+			VERIFY(list1 <= list2);
+
+			VERIFY(list2 > list1);
+			VERIFY(list2 >= list1);
+
+			VERIFY(list3 > list1);
+			VERIFY(list3 > list2);
+		}
+
+#if defined(EA_COMPILER_HAS_THREE_WAY_COMPARISON)
+		{
+			slist<int> list1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+			slist<int> list2 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+			slist<int> list3 = {-1, 0, 1, 2, 3, 4, 5};
+
+			// Verify equality between list1 and list2
+			VERIFY((list1 <=> list2) == 0);
+			VERIFY(!((list1 <=> list2) != 0));
+			VERIFY((list1 <=> list2) <= 0);
+			VERIFY((list1 <=> list2) >= 0);
+			VERIFY(!((list1 <=> list2) < 0));
+			VERIFY(!((list1 <=> list2) > 0));
+
+			list1.push_front(-2); // Make list1 less than list2.
+			list2.push_front(-1);
+
+			// Verify list1 < list2
+			VERIFY(!((list1 <=> list2) == 0));
+			VERIFY((list1 <=> list2) != 0);
+			VERIFY((list1 <=> list2) <= 0);
+			VERIFY(!((list1 <=> list2) >= 0));
+			VERIFY(((list1 <=> list2) < 0));
+			VERIFY(!((list1 <=> list2) > 0));
+
+
+			// Verify list3.size() < list2.size() and list3 is a subset of list2
+			VERIFY(!((list3 <=> list2) == 0));
+			VERIFY((list3 <=> list2) != 0);
+			VERIFY((list3 <=> list2) <= 0);
+			VERIFY(!((list3 <=> list2) >= 0));
+			VERIFY(((list3 <=> list2) < 0));
+			VERIFY(!((list3 <=> list2) > 0));
+		}
+
+		{
+			slist<int> list1 = {1, 2, 3, 4, 5, 6, 7};
+			slist<int> list2 = {7, 6, 5, 4, 3, 2, 1};
+			slist<int> list3 = {1, 2, 3, 4};
+
+			struct weak_ordering_slist
+			{
+				slist<int> slist;
+				inline std::weak_ordering operator<=>(const weak_ordering_slist& b) const { return slist <=> b.slist; }
+			};
+
+			VERIFY(synth_three_way{}(weak_ordering_slist{list1}, weak_ordering_slist{list2}) == std::weak_ordering::less);
+			VERIFY(synth_three_way{}(weak_ordering_slist{list3}, weak_ordering_slist{list1}) == std::weak_ordering::less);
+			VERIFY(synth_three_way{}(weak_ordering_slist{list2}, weak_ordering_slist{list1}) == std::weak_ordering::greater);
+			VERIFY(synth_three_way{}(weak_ordering_slist{list2}, weak_ordering_slist{list3}) == std::weak_ordering::greater);
+			VERIFY(synth_three_way{}(weak_ordering_slist{list1}, weak_ordering_slist{list1}) == std::weak_ordering::equivalent);
+
+			struct strong_ordering_slist
+			{
+				slist<int> slist;
+				inline std::strong_ordering operator<=>(const strong_ordering_slist& b) const { return slist <=> b.slist; }
+			};
+
+			VERIFY(synth_three_way{}(strong_ordering_slist{list1}, strong_ordering_slist{list2}) == std::strong_ordering::less);
+			VERIFY(synth_three_way{}(strong_ordering_slist{list3}, strong_ordering_slist{list1}) == std::strong_ordering::less);
+			VERIFY(synth_three_way{}(strong_ordering_slist{list2}, strong_ordering_slist{list1}) == std::strong_ordering::greater);
+			VERIFY(synth_three_way{}(strong_ordering_slist{list2}, strong_ordering_slist{list3}) == std::strong_ordering::greater);
+			VERIFY(synth_three_way{}(strong_ordering_slist{list1}, strong_ordering_slist{list1}) == std::strong_ordering::equal);
+		}
+#endif
 	}
 
 	return nErrorCount;

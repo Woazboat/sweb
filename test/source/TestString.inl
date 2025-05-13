@@ -266,6 +266,48 @@ int TEST_STRING_NAME()
 			VERIFY(str == LITERAL("Hello, 42 42 42 42 42 42 42 42 42"));
 			VERIFY(str.validate());
 		}
+
+		{
+			constexpr eastl_ssize_t signedValue = -42;
+			StringType str(typename StringType::CtorSprintf(), LITERAL("Hello, %" EASTL_PRIdSIZE), signedValue);
+			VERIFY(str == LITERAL("Hello, -42"));
+			VERIFY(str.validate());
+		}
+
+		{
+			constexpr eastl_ssize_t signedValue = -42;
+			StringType str(typename StringType::CtorSprintf(), LITERAL("Hello, %" EASTL_PRIiSIZE), signedValue);
+			VERIFY(str == LITERAL("Hello, -42"));
+			VERIFY(str.validate());
+		}
+
+		{
+			constexpr eastl_size_t unsignedValue = 42u;
+			StringType str(typename StringType::CtorSprintf(), LITERAL("Hello, 0%" EASTL_PRIoSIZE), unsignedValue);
+			VERIFY(str == LITERAL("Hello, 052"));
+			VERIFY(str.validate());
+		}
+
+		{
+			constexpr eastl_size_t unsignedValue = 42u;
+			StringType str(typename StringType::CtorSprintf(), LITERAL("Hello, %" EASTL_PRIuSIZE), unsignedValue);
+			VERIFY(str == LITERAL("Hello, 42"));
+			VERIFY(str.validate());
+		}
+
+		{
+			constexpr eastl_size_t unsignedValue = 42u;
+			StringType str(typename StringType::CtorSprintf(), LITERAL("Hello, 0x%" EASTL_PRIxSIZE), unsignedValue);
+			VERIFY(str == LITERAL("Hello, 0x2a"));
+			VERIFY(str.validate());
+		}
+
+		{
+			constexpr eastl_size_t unsignedValue = 42u;
+			StringType str(typename StringType::CtorSprintf(), LITERAL("Hello, 0x%" EASTL_PRIXSIZE), unsignedValue);
+			VERIFY(str == LITERAL("Hello, 0x2A"));
+			VERIFY(str.validate());
+		}
 	#endif
 	}
 
@@ -1675,6 +1717,49 @@ int TEST_STRING_NAME()
 		VERIFY(str.rfind(LITERAL('1'), 20) == StringType::npos);
 	}
 
+	{
+		StringType str(LITERAL("abcdabcdabcdabcd"));
+
+		VERIFY(str.rfind(StringType(LITERAL("d")))     == (str.size() - 1));
+		VERIFY(str.rfind(StringType(LITERAL("abc")))   == (str.size() - 4));
+		VERIFY(str.rfind(StringType(LITERAL("dab")))   == (str.size() - 5));
+		VERIFY(str.rfind(StringType(LITERAL("e")))     == StringType::npos);
+		VERIFY(str.rfind(StringType(LITERAL("abcde"))) == StringType::npos);
+
+		VERIFY(str.rfind(StringType(LITERAL("d")), 8)     == 7);
+		VERIFY(str.rfind(StringType(LITERAL("abc")), 8)   == 8);
+		VERIFY(str.rfind(StringType(LITERAL("abc")), 7)   == 4);
+		VERIFY(str.rfind(StringType(LITERAL("dab")), 8)   == 7);
+		VERIFY(str.rfind(StringType(LITERAL("dab")), 7)   == 7);
+		VERIFY(str.rfind(StringType(LITERAL("e")), 8)     == StringType::npos);
+		VERIFY(str.rfind(StringType(LITERAL("abcde")), 8) == StringType::npos);
+
+		VERIFY(str.rfind(LITERAL("d"))     == (str.size() - 1));
+		VERIFY(str.rfind(LITERAL("abcd"))  == (str.size() - 4));
+		VERIFY(str.rfind(LITERAL("abc"))   == (str.size() - 4));
+		VERIFY(str.rfind(LITERAL("e"))     == StringType::npos);
+		VERIFY(str.rfind(LITERAL("abcde")) == StringType::npos);
+
+		VERIFY(str.rfind(LITERAL("d"), 8)     == 7);
+		VERIFY(str.rfind(LITERAL("abc"), 8)   == 8);
+		VERIFY(str.rfind(LITERAL("abc"), 7)   == 4);
+		VERIFY(str.rfind(LITERAL("dab"), 8)   == 7);
+		VERIFY(str.rfind(LITERAL("dab"), 7)   == 7);
+		VERIFY(str.rfind(LITERAL("e"), 8)     == StringType::npos);
+		VERIFY(str.rfind(LITERAL("abcde"), 8) == StringType::npos);
+	}
+
+	{
+		StringType str(LITERAL("abcdeaababcdabcdx"));
+
+		VERIFY(str.rfind(StringType(LITERAL("abcde")))    == 0);
+		VERIFY(str.rfind(StringType(LITERAL("abcde")), 8) == 0);
+
+		VERIFY(str.rfind(LITERAL("abcde"))    == 0);
+		VERIFY(str.rfind(LITERAL("abcde"), 8) == 0);
+	}
+
+
 	// size_type find_first_of(const this_type& x, size_type position = 0) const EA_NOEXCEPT;
 	// size_type find_first_of(const value_type* p, size_type position = 0) const;
 	// size_type find_first_of(const value_type* p, size_type position, size_type n) const;
@@ -2024,19 +2109,25 @@ int TEST_STRING_NAME()
 	// test eastl::erase
 	{
 		StringType str(LITERAL("abcdefghijklmnopqrstuvwxyz"));
-		eastl::erase(str, LITERAL('a'));
-		eastl::erase(str, LITERAL('f'));
-		eastl::erase(str, LITERAL('l'));
-		eastl::erase(str, LITERAL('w'));
-		eastl::erase(str, LITERAL('y'));
+		auto numErased = eastl::erase(str, LITERAL('a'));
+	    VERIFY(numErased == 1);
+		numErased = eastl::erase(str, LITERAL('f'));
+	    VERIFY(numErased == 1);
+		numErased = eastl::erase(str, LITERAL('l'));
+	    VERIFY(numErased == 1);
+		numErased = eastl::erase(str, LITERAL('w'));
+	    VERIFY(numErased == 1);
+		numErased = eastl::erase(str, LITERAL('y'));
+	    VERIFY(numErased == 1);
 		VERIFY(str == LITERAL("bcdeghijkmnopqrstuvxz"));
 	}
 
 	// test eastl::erase_if
 	{
 		StringType str(LITERAL("abcdefghijklmnopqrstuvwxyz"));
-		eastl::erase_if(str, [](auto c) { return c == LITERAL('a') || c == LITERAL('v'); });
+		auto numErased = eastl::erase_if(str, [](auto c) { return c == LITERAL('a') || c == LITERAL('v'); });
 		VERIFY(str == LITERAL("bcdefghijklmnopqrstuwxyz"));
+	    VERIFY(numErased == 2);
 	}
 
 	// template<> struct hash<eastl::string>;
@@ -2063,6 +2154,28 @@ int TEST_STRING_NAME()
 		VERIFY(LocalHash(sw1) != LocalHash(sw2));
 		VERIFY(LocalHash(sw2) == LocalHash(sw3));
 	}
+
+	// test <=> operator
+	#if defined(EA_COMPILER_HAS_THREE_WAY_COMPARISON)
+	{
+		StringType sw1(LITERAL("Test String "));
+		StringType sw2(LITERAL("Test String 1"));
+		StringType sw3(LITERAL("Test String 2"));
+		StringType sw4(LITERAL("abcdef"));
+
+		VERIFY((sw1 <=> sw2) != 0);
+		VERIFY((sw1 <=> sw3) != 0);
+		VERIFY((sw2 <=> sw3) != 0);
+		VERIFY((sw1 <=> sw2) < 0);
+		VERIFY((sw1 <=> sw3) < 0);
+		VERIFY((sw2 <=> sw2) == 0);
+		VERIFY((sw2 <=> sw3) < 0);
+		VERIFY((sw2 <=> sw4) < 0);
+		VERIFY((sw4 <=> sw2) > 0);
+		VERIFY((sw4 <=> sw3) > 0);
+		VERIFY((sw3 <=> sw2) > 0);
+	}
+	#endif
 
 	return nErrorCount;
 }
