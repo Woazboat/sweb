@@ -31,6 +31,8 @@
 
 #define EASTL_EASTDC_VSNPRINTF 0
 
+#define EASTL_ALLOCATOR_EXPLICIT_ENABLED 1
+
 extern void kprintfd(const char *fmt, ...);
 [[maybe_unused]] const auto printf = kprintfd;
 
