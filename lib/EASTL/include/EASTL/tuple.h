@@ -53,12 +53,16 @@ struct tuple_element
 {
 };
 
+EA_DISABLE_GCC_WARNING(-Wtautological-compare);
+EA_DISABLE_CLANG_WARNING(-Wtautological-compare);
 template <size_t I>
 struct tuple_element<I, TupleTypes<>>
 {
 public:
 	static_assert(I != I, "tuple_element index out of range");
 };
+EA_RESTORE_CLANG_WARNING();
+EA_RESTORE_GCC_WARNING();
 
 template <typename H, typename... Ts>
 struct tuple_element<0, TupleTypes<H, Ts...>>
