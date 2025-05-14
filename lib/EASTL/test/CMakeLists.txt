@@ -72,60 +72,60 @@ add_executable(EASTLTest ${SOURCES})
 target_include_directories(EASTLTest PUBLIC include)
 
 #-------------------------------------------------------------------------------------------
-# Dependencies 
+# Dependencies
 #-------------------------------------------------------------------------------------------
-FetchContent_Declare(
-  EABase
-  GIT_REPOSITORY https://github.com/electronicarts/EABase.git
-  GIT_TAG        123363eb82e132c0181ac53e43226d8ee76dea12
-  GIT_SUBMODULES "" # This should be temporary until we update the cyclic submodule dependencies in EABase.
-)
-FetchContent_MakeAvailable(EABase)
+# FetchContent_Declare(
+#   EABase
+#   GIT_REPOSITORY https://github.com/electronicarts/EABase.git
+#   GIT_TAG        123363eb82e132c0181ac53e43226d8ee76dea12
+#   GIT_SUBMODULES "" # This should be temporary until we update the cyclic submodule dependencies in EABase.
+# )
+# FetchContent_MakeAvailable(EABase)
 target_link_libraries(EASTLTest EABase)
 
-FetchContent_Declare(
-  EAAssert
-  GIT_REPOSITORY https://github.com/electronicarts/EAAssert.git
-  GIT_TAG        e5e181255de2e883dd1f987c78ccc42ac81d3bca
-  GIT_SUBMODULES "" # This should be temporary until we update the cyclic submodule dependencies in EAAssert.
-)
-FetchContent_MakeAvailable(EAAssert)
+# FetchContent_Declare(
+#   EAAssert
+#   GIT_REPOSITORY https://github.com/electronicarts/EAAssert.git
+#   GIT_TAG        e5e181255de2e883dd1f987c78ccc42ac81d3bca
+#   GIT_SUBMODULES "" # This should be temporary until we update the cyclic submodule dependencies in EAAssert.
+# )
+# FetchContent_MakeAvailable(EAAssert)
 target_link_libraries(EASTLTest EAAssert)
 
-FetchContent_Declare(
-  EAStdC
-  GIT_REPOSITORY https://github.com/electronicarts/EAStdC.git
-  GIT_TAG        fbcc34e89c63636054334888f3a5bd7ac2fd4b76
-  GIT_SUBMODULES "" # This should be temporary until we update the cyclic submodule dependencies in EAStdC.
-)
-FetchContent_MakeAvailable(EAStdC)
+# FetchContent_Declare(
+#   EAStdC
+#   GIT_REPOSITORY https://github.com/electronicarts/EAStdC.git
+#   GIT_TAG        fbcc34e89c63636054334888f3a5bd7ac2fd4b76
+#   GIT_SUBMODULES "" # This should be temporary until we update the cyclic submodule dependencies in EAStdC.
+# )
+# FetchContent_MakeAvailable(EAStdC)
 target_link_libraries(EASTLTest EAStdC)
 
-FetchContent_Declare(
-  EAMain
-  GIT_REPOSITORY https://github.com/electronicarts/EAMain.git
-  GIT_TAG        24ca8bf09e6b47b860286fc2f4c832f4009273d1
-  GIT_SUBMODULES "" # This should be temporary until we update the cyclic submodule dependencies in EAMain.
-)
-FetchContent_MakeAvailable(EAMain)
+# FetchContent_Declare(
+#   EAMain
+#   GIT_REPOSITORY https://github.com/electronicarts/EAMain.git
+#   GIT_TAG        24ca8bf09e6b47b860286fc2f4c832f4009273d1
+#   GIT_SUBMODULES "" # This should be temporary until we update the cyclic submodule dependencies in EAMain.
+# )
+# FetchContent_MakeAvailable(EAMain)
 target_link_libraries(EASTLTest EAMain)
 
-FetchContent_Declare(
-  EATest
-  GIT_REPOSITORY https://github.com/electronicarts/EATest.git
-  GIT_TAG        a59b372fc9cba517283ad6d060d2ab96e0ba34ac
-  GIT_SUBMODULES "" # This should be temporary until we update the cyclic submodule dependencies in EATest.
-)
-FetchContent_MakeAvailable(EATest)
+# FetchContent_Declare(
+#   EATest
+#   GIT_REPOSITORY https://github.com/electronicarts/EATest.git
+#   GIT_TAG        a59b372fc9cba517283ad6d060d2ab96e0ba34ac
+#   GIT_SUBMODULES "" # This should be temporary until we update the cyclic submodule dependencies in EATest.
+# )
+# FetchContent_MakeAvailable(EATest)
 target_link_libraries(EASTLTest EATest)
 
-FetchContent_Declare(
-  EAThread
-  GIT_REPOSITORY https://github.com/electronicarts/EAThread.git
-  GIT_TAG        f3c6c54d19699639a5edcf5237ea8b71aca6842c
-  GIT_SUBMODULES "" # This should be temporary until we update the cyclic submodule dependencies in EAThread.
-)
-FetchContent_MakeAvailable(EAThread)
+# FetchContent_Declare(
+#   EAThread
+#   GIT_REPOSITORY https://github.com/electronicarts/EAThread.git
+#   GIT_TAG        f3c6c54d19699639a5edcf5237ea8b71aca6842c
+#   GIT_SUBMODULES "" # This should be temporary until we update the cyclic submodule dependencies in EAThread.
+# )
+# FetchContent_MakeAvailable(EAThread)
 target_link_libraries(EASTLTest EAThread)
 
 target_link_libraries(EASTLTest EASTL)
