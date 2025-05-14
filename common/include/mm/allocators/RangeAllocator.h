@@ -112,11 +112,12 @@ public:
     }
 
 
-    class AllocBlockIterator : public eastl::iterator<eastl::input_iterator_tag, size_t>
+    class AllocBlockIterator
     {
     public:
         using iterator_category = eastl::input_iterator_tag;
         using value_type        = size_t;
+        using difference_type   = ptrdiff_t;
         using pointer           = value_type*;
         using const_pointer     = const value_type*;
         using reference         = value_type&;

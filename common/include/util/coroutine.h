@@ -240,8 +240,17 @@ public:
         friend iterator;
     };
 
-    struct iterator : eastl::iterator<eastl::input_iterator_tag, T>
+    struct iterator
     {
+        using iterator_category = eastl::input_iterator_tag;
+        using value_type        = T;
+        using difference_type   = ptrdiff_t;
+        using pointer           = value_type*;
+        using const_pointer     = const value_type*;
+        using reference         = value_type&;
+        using const_reference   = const value_type&;
+
+
         struct sentinel_t {};
 
         iterator(const std::coroutine_handle<promise_type>& h) : coroutine_(h) { }
