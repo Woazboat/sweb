@@ -1,0 +1,4 @@
+#pragma once
+
+// compatibility shim for eastl::pair structured binding
+#include <tuple>

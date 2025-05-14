@@ -1,0 +1,4 @@
+#pragma once
+
+// compatibility shim for eastl::array structured binding
+#include <tuple>
