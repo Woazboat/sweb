@@ -42,6 +42,8 @@ namespace eastl
 			return true; // Sony consoles use short wchar_t disregarding the flag.
 #elif defined(EA_PLATFORM_POSIX) || defined(EA_PLATFORM_UNIX)
 			return sizeof(wchar_t) == 4;
+#else
+            return false;
 #endif
 		}
 #endif
