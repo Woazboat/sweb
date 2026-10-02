@@ -33,7 +33,7 @@ IrqDomain& ArchCpu::rootIrqDomain()
 
 void ArchMulticore::notifyMessageAvailable(ArchCpu& cpu)
 {
-    cpu_lapic->sendIPI(MESSAGE_INT_VECTOR, *cpu.lapic, true);
+    cpu_lapic->sendIPI(InterruptVector::IPI_REMOTE_FCALL, *cpu.lapic, true);
 }
 
 void ArchMulticore::sendFunctionCallMessage(ArchCpu& cpu, RemoteFunctionCallMessage* fcall_message)
@@ -46,7 +46,7 @@ void ArchMulticore::stopAllCpus()
 {
     if(CpuLocalStorage::ClsInitialized() && cpu_lapic->isInitialized())
     {
-        cpu_lapic->sendIPI(STOP_INT_VECTOR);
+        cpu_lapic->sendIPI(InterruptVector::IPI_HALT_CPU);
     }
 }
 
@@ -54,7 +54,7 @@ void ArchMulticore::stopOtherCpus()
 {
     if(CpuLocalStorage::ClsInitialized() && cpu_lapic->isInitialized())
     {
-        cpu_lapic->sendIPI(STOP_INT_VECTOR, Apic::IPIDestination::OTHERS);
+        cpu_lapic->sendIPI(InterruptVector::IPI_HALT_CPU, Apic::IPIDestination::OTHERS);
     }
 }
 
