@@ -42,8 +42,9 @@ static_assert(sizeof(_guard_t) == sizeof(int64_t), "Size of static initializer g
 #define CONSTRUCTION_UNDERWAY                   0x100
 
 extern "C" int __cxa_guard_acquire(_guard_t* gv) {
-  int old_value = gv->state.load(eastl::memory_order_relaxed);
   while (true) {
+    int old_value = gv->state.load(eastl::memory_order_acquire);
+
     if (old_value == CONSTRUCTION_COMPLETE)
     {
       // A load_acquire operation is need before exiting with COMPLETE state, as we have to ensure
