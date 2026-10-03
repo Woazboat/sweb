@@ -73,7 +73,7 @@ void X2Apic::init()
     debug(APIC, "Local x2APIC, id: %x, logical dest: %x\n", apicId(), logical_dest_id);
 
     setErrorInterruptVector(InterruptVector::APIC_ERROR);
-    setSpuriousInterruptNumber(100);
+    setSpuriousInterruptNumber(InterruptVector::APIC_SPURIOUS);
 
     enable(true);
 
