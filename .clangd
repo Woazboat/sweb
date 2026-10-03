@@ -12,6 +12,9 @@ Diagnostics:
             - bugprone-*
         Remove:
             - modernize-use-trailing-return-type
+            - modernize-deprecated-headers
+            - bugprone-easily-swappable-parameters
+            - bugprone-reserved-identifier
     UnusedIncludes: Strict
 ---
 If:
