@@ -91,7 +91,7 @@ void Apic::initTimer()
     writeRegister<Register::LVT_TIMER>(timer_reg);
 
     // Write to initial count register starts timer
-    setTimerPeriod(0x500000);
+    setTimerPeriod(0x500000); // Arbitrarily chosen timer period, not calibrated to anything
 }
 
 void Apic::setTimerPeriod(uint32_t count)

@@ -166,6 +166,9 @@ void kprintfd_func(int ch, void* arg __attribute__((unused)))
  * read from disk -> thread A sleep until read finished (wait for ATA irq handler) -> ata irq
  * handler (in arbitrary thread context) blocks on kprintfd lock -> deadlock
  *
+ * Pagefaults (any, not just in the debug function) will also cause interrupts to be re-enabled and
+ * therefore will void any non-preemption guarantees and wreak havoc on any code that assumes it won't be interrupted
+ *
  * PREVENT PAGEFAULTS FROM OCCURRING IN KPRINTFD/DEBUG WHENEVER POSSIBLE!
  */
 void kprintfd(const char* fmt, ...)

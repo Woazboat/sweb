@@ -249,7 +249,7 @@ enum class IMCRSelect : uint8_t
 enum class IMCRData : uint8_t
 {
     PIC_MODE = 0x0,
-    APIC_PASSTHROUGH = 0x1,
+    APIC_PASSTHROUGH = 0x1, // Symmetric I/O mode
 };
 
 using IMCR_SELECT =

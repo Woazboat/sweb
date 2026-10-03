@@ -401,7 +401,7 @@ extern "C" [[noreturn]] void contextSwitch(Thread* target_thread, ArchThreadRegi
   assert(info.rsp0 >= USER_BREAK);
   cpu_tss.setTaskStack(info.rsp0);
   size_t new_fsbase = target_thread->switch_to_userspace_ ? target_registers->fsbase : (uint64)getSavedFSBase();
-  setFSBase(new_fsbase); // Don't use CLS after this line
+  setFSBase(new_fsbase); // Don't use cpu local storage after this line
   asm volatile(
       "frstor %[fpu]\n"
       "mov %[cr3], %%cr3\n"
@@ -427,7 +427,7 @@ extern "C" [[noreturn]] void contextSwitch(Thread* target_thread, ArchThreadRegi
       "mov %[rbx], %%rbx\n"
       "mov %[rax], %%rax\n"
       "mov %[rbp], %%rbp\n"
-      // Check %cs in iret frame on stack whether we're returning to userspace
+      // Check %cs in iret frame on stack whether we're returning to userspace -> swapgs if true
       "testl $3, 8(%%rsp)\n"
       "jz 1f\n"
       "swapgs\n"

@@ -28,7 +28,7 @@ IDEControllerDriver& IDEControllerDriver::instance()
 void IDEControllerDriver::doDeviceDetection()
 {
     // Assume we have an IDE controller
-    // Normally detcted via PCI bus enumeration
+    // Normally detected via PCI bus enumeration
     auto ide_controller = new IDEController("IDE Controller");
     bindDevice(*ide_controller);
 }

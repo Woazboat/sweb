@@ -10,6 +10,9 @@
 
 // Information concerning one cpu in the system
 // Base functionality for all architectures
+//
+// Per-CPU information in CPU local storage needs to be referenced here
+// via pointer in order to be accessible from other CPUs.
 class Cpu : public Device
 {
 public:

@@ -25,8 +25,10 @@ cpu_local GDT cpu_gdt;
 cpu_local TSS cpu_tss;
 
 cpu_local XApic cpu_lapic_impl;
+// CPU local Advanced Programmable Interrupt Controller
 cpu_local Apic* cpu_lapic = &cpu_lapic_impl;
 
+// Per-CPU stack. Used during boot and context switch
 cpu_local char cpu_stack[CPU_STACK_SIZE];
 
 

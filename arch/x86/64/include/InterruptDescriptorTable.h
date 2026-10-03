@@ -94,6 +94,7 @@ template<size_t N>
                  ::[num] "i"(N));
 }
 
+// Helper functions to generate IDT entries at compile time
 template<size_t I>
 auto make_element()
 {
