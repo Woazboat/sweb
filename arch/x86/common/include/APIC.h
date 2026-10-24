@@ -439,8 +439,15 @@ public:
     void setSpuriousInterruptNumber(uint8_t num);
     void setErrorInterruptVector(uint8_t vector);
 
-    static eastl::vector<MADTProcLocalAPIC> local_apic_list_;
-    static void addLocalAPICToList(const MADTProcLocalAPIC&);
+    struct LocalApicEntry
+    {
+        uint32_t apic_id;
+        bool enabled;
+        bool x2Apic = false;
+    };
+
+    static eastl::vector<LocalApicEntry> local_apic_list_;
+    static void addLocalAPICToList(const LocalApicEntry&);
 
     size_t outstanding_EOIs_ = 0;
 

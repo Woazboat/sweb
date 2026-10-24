@@ -242,7 +242,7 @@ void ACPI_MADTHeader::parse()
     {
       MADTProcLocalAPIC* entry = (MADTProcLocalAPIC*)(madt_entry + 1);
       debug(ACPI, "[%p] Processor local APIC, ACPI Processor ID: %4x, APIC ID: %4x, enabled: %u, online capable: %u\n", entry, entry->proc_id, entry->apic_id, entry->flags.enabled, entry->flags.online_capable);
-      Apic::addLocalAPICToList(*entry);
+      Apic::addLocalAPICToList({.apic_id = entry->apic_id, .enabled = entry->flags.enabled});
       break;
     }
     case MADTEntryDescriptor::IO_APIC:
@@ -282,6 +282,7 @@ void ACPI_MADTHeader::parse()
     {
       MADTProcLocalx2APIC* entry = (MADTProcLocalx2APIC*)(madt_entry + 1);
       debug(ACPI, "[%p] Processor local x2APIC, x2APIC ID: %4x, enabled: %u, proc UID: %x\n", entry, entry->x2apic_id, entry->flags.enabled, entry->processor_uid);
+      Apic::addLocalAPICToList({.apic_id = entry->x2apic_id, .enabled = entry->flags.enabled, .x2Apic = true});
       break;
     }
     default:
@@ -293,7 +294,7 @@ void ACPI_MADTHeader::parse()
 }
 
 
-void Apic::addLocalAPICToList(const MADTProcLocalAPIC& entry)
+void Apic::addLocalAPICToList(const LocalApicEntry& entry)
 {
   local_apic_list_.push_back(entry);
 }

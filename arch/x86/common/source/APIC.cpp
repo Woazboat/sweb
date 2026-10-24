@@ -26,7 +26,7 @@
 void* XApic::reg_paddr_ = (void*)0xfee00000;
 void* XApic::reg_vaddr_ = nullptr;
 
-eastl::vector<MADTProcLocalAPIC> Apic::local_apic_list_{};
+eastl::vector<Apic::LocalApicEntry> Apic::local_apic_list_{};
 
 extern volatile size_t outstanding_EOIs;
 

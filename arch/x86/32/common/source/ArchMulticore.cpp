@@ -178,8 +178,14 @@ void ArchMulticore::startOtherCPUs()
 
     for(auto& other_cpu_lapic : Apic::local_apic_list_)
     {
-      if(other_cpu_lapic.flags.enabled && (other_cpu_lapic.apic_id != cpu_lapic->apicId()))
+      if(other_cpu_lapic.enabled && (other_cpu_lapic.apic_id != cpu_lapic->apicId()))
       {
+        if ((other_cpu_lapic.apic_id > 0xFF) && !cpu_lapic->isX2Apic())
+        {
+            debug(A_MULTICORE, "Cannot start AP with ID %u without a x2APIC (max. addressible ID is 255)\n", other_cpu_lapic.apic_id);
+            continue;
+        }
+
         startAP(other_cpu_lapic.apic_id, AP_STARTUP_PADDR);
         debug(A_MULTICORE, "BSP waiting for AP %x startup to be complete\n", other_cpu_lapic.apic_id);
         while(!ap_started);
