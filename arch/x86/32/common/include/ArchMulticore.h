@@ -60,7 +60,7 @@ class ArchMulticore
     static void stopAllCpus();
     static void stopOtherCpus();
 
-    static void startAP(uint8_t apic_id, size_t entry_addr);
+    static void startAP(uint32_t apic_id, size_t entry_addr);
 
     static void sendFunctionCallMessage(ArchCpu& cpu, RemoteFunctionCallMessage* fcall_message);
     static void notifyMessageAvailable(ArchCpu& cpu);

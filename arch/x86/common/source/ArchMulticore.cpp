@@ -95,7 +95,7 @@ void ArchMulticore::reservePages(Allocator& allocator)
     assert(ap_boot_code_range == 0);
 }
 
-void ArchMulticore::startAP(uint8_t apic_id, size_t entry_addr)
+void ArchMulticore::startAP(uint32_t apic_id, size_t entry_addr)
 {
     debug(A_MULTICORE, "Sending init IPI to AP local APIC %u, AP entry function: %zx\n", apic_id, entry_addr);
 

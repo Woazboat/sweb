@@ -491,6 +491,7 @@ uint64_t XApic::readRegisterImpl(ApicRegisterOffset offset)
 void XApic::writeIcr(InterruptCommandRegisterLow icr_l, uint32_t dest)
 {
     InterruptCommandRegister icr{};
+    assert(dest <= 0xFF && "Target ID too big for xAPIC (max. 255)");
     icr.h.xapic_destination = dest;
     icr.l = icr_l;
 
