@@ -66,6 +66,9 @@ extern "C" [[noreturn]] void startup()
 
   ArchCommon::initKernelVirtualAddressAllocator();
 
+  // Initialize devices that are known to exist in the system and
+  // which are not connected to any other bus system that
+  // supports automatic device discovery
   PlatformBus::initPlatformBus();
 
   BootloaderModules::mapModules();

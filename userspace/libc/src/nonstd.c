@@ -34,7 +34,7 @@ ssize_t getdents(int fd, char* buffer, size_t buffer_size)
 void _preinit()
 {
     func_ptr* it = &__preinit_array_start;
-	while(it != &__preinit_array_end)
+    while(it != &__preinit_array_end)
         (*it++)();
 }
 
@@ -42,7 +42,7 @@ void _preinit()
 void _init()
 {
     func_ptr* it = &__init_array_start;
-	while(it != &__init_array_end)
+    while(it != &__init_array_end)
         (*it++)();
 }
 
