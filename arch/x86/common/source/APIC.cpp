@@ -73,6 +73,12 @@ void Apic::enable(bool enable)
     writeRegister<Register::SPURIOUS_INTERRUPT_VECTOR>(siv);
 }
 
+bool Apic::isEnabled()
+{
+    auto siv = readRegister<Register::SPURIOUS_INTERRUPT_VECTOR>();
+    return siv.enable;
+}
+
 void Apic::initTimer()
 {
     debug(APIC, "Init timer for APIC %x\n", apicId());

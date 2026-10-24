@@ -390,8 +390,11 @@ public:
 
     static void setIMCRMode(IMCRData mode);
 
+    // Enable bit in the IA32_APIC_BASE MSR
     static void globalEnable(bool = true);
+    // 'Soft' enable via the enable bit in the APIC spurious interrupt register
     void enable(bool = true);
+    bool isEnabled();
 
     bool mask(irqnum_t irq, bool mask) override;
     bool ack(irqnum_t irq) override;
