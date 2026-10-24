@@ -169,8 +169,11 @@ IoApic::IOAPIC_redir_entry IoApic::readRedirEntry(uint32_t entry_no)
     uint8_t offset = redirEntryOffset(entry_no);
 
     IOAPIC_redir_entry temp;
-    temp.word_l = read(offset);
-    temp.word_h = read(offset + 1);
+    {
+        WithInterrupts i(false); // Prevent torn reads
+        temp.word_l = read(offset);
+        temp.word_h = read(offset + 1);
+    }
 
     redir_entry_cache_[entry_no] = temp;
 
@@ -186,6 +189,7 @@ void IoApic::writeRedirEntry(uint32_t entry_no, const IoApic::IOAPIC_redir_entry
 
     uint8_t offset = redirEntryOffset(entry_no);
 
+    WithInterrupts i(false); // Prevent torn writes
     write(offset + 1, value.word_h);
     write(offset, value.word_l);
 }
