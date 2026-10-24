@@ -200,12 +200,17 @@ void int90_handler_halt_cpu()
  */
 void int91_handler_APIC_error()
 {
+    // Always write 0 to the APIC error register _before_ reading it.
+    // Writing to the register will not directly overwrite its contents,
+    // but rather clear any previous errors and update the error status
+    // register with any errors detected since the last write.
+    // Writing to the register also rearms the APIC error interrupt so it can be raised again
+    cpu_lapic->writeRegister<Apic::Register::ERROR_STATUS>({});
+
     auto error = cpu_lapic->readRegister<Apic::Register::ERROR_STATUS>();
     debugAlways(APIC, "Internal APIC error: %x\n", *(uint32_t*)&error);
 
     assert(!"Internal APIC error");
-
-    cpu_lapic->writeRegister<Apic::Register::ERROR_STATUS>({});
 }
 
 /**
