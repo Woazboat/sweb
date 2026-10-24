@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "EASTL/bitset.h"
+#include "EASTL/optional.h"
 
 namespace CPUID
 {
@@ -214,6 +215,8 @@ public:
 
         FEATURE_COUNT // dummy value to get enum size for bitset
     };
+
+    eastl::optional<uint8_t> phy_adr_bits{}; // Number of implemented physical address bits
 
     CpuFeatures();
 

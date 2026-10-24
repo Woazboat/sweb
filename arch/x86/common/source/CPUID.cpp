@@ -259,6 +259,13 @@ void CpuFeatures::initCpuFeatures()
         features_.set(MONITORX, ecx & (1 << 29));
     }
 
+    if (highest_ext_cpuid_param >= 0x80000008)
+    {
+        CPUID::cpuid(0x80000008, 0, eax, ebx, ecx, edx);
+
+        phy_adr_bits = eax & 0xFF;
+    }
+
     if (highest_ext_cpuid_param >= 0x8000001F)
     {
         CPUID::cpuid(0x8000001F, 0, eax, ebx, ecx, edx);

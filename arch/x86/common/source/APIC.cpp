@@ -19,6 +19,7 @@
 #include "ArchInterrupts.h"
 #include "ArchMemory.h"
 #include "ArchMulticore.h"
+#include <cstdint>
 
 #include "assert.h"
 #include "debug.h"
@@ -59,6 +60,7 @@ void Apic::setIMCRMode(IMCRData mode)
 void Apic::globalEnable(bool enable)
 {
     auto apic_base = MSR::IA32_APIC_BASE::read();
+    debug(APIC, "Hard-enabling APIC on processor, previous state: %d\n", apic_base.enable);
     apic_base.enable = enable;
     MSR::IA32_APIC_BASE::write(apic_base);
 }
@@ -290,9 +292,9 @@ bool Apic::irqStart(irqnum_t irq)
 
 void XApic::foundLocalAPIC(void* reg_phys_addr, MADTExtendedHeader::Flags flags)
 {
-    debug(APIC, "Local APIC at phys %p, PIC 8259: %u\n", reg_paddr_, flags.PCAT_COMPAT);
+    debug(APIC, "Local APIC at phys %p, PIC 8259: %u\n", reg_phys_addr, flags.PCAT_COMPAT);
     PIC8259::exists = flags.PCAT_COMPAT;
-    assert(reg_phys_addr == readMsrPhysAddr());
+    setPhysicalAddress(reg_phys_addr);
 }
 
 void XApic::mapAt(size_t addr)
@@ -508,7 +510,15 @@ void XApic::writeIcr(InterruptCommandRegisterLow icr_l, uint32_t dest)
 void* XApic::readMsrPhysAddr()
 {
     auto apic_base = MSR::IA32_APIC_BASE::read();
-    return (void*)((uintptr_t)apic_base.apic_base*PAGE_SIZE);
+    uint8_t MAXAPICADDR = 36; // default according to intel manual if physical address bits CPUID is not supported
+
+    if (cpu_features.phy_adr_bits)
+    {
+        MAXAPICADDR = *cpu_features.phy_adr_bits;
+    }
+    uint64_t MAXAPICADDR_mask = ((uint64_t)1 << MAXAPICADDR) - 1;
+    uint64_t masked_addr = apic_base.apic_base & (MAXAPICADDR_mask >> 12);
+    return (void*)(masked_addr*PAGE_SIZE);
 }
 
 bool XApic::apicSupported()

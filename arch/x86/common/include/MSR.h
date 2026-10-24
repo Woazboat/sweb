@@ -12,7 +12,7 @@ namespace MSR
 #define MSR_FS_BASE        0xC0000100
 #define MSR_GS_BASE        0xC0000101
 #define MSR_KERNEL_GS_BASE 0xC0000102
-#define MSR_IA32_APIC_BASE 0x1B
+#define MSR_APIC_BASE 0x1B
 #define MSR_IA32_PAT       0x277
 
 
@@ -78,8 +78,13 @@ namespace MSR
                 uint64_t reserved2     :  1;
                 uint64_t x2apic_enable :  1;
                 uint64_t enable        :  1;
-                uint64_t apic_base     : 24;
-                uint64_t reserved3     : 28;
+                // Intel: Intel manual, 13.4.4 - Local APIC Status and Location
+                // The bith width of the apic_base address field is variable: [MAXAPICADDR-1:12]
+                // MAXAPICADDR is normally CPUID.80000008H:EAX[7:0] for processors that support CPUID.80000008H and 36 otherwise.
+                // AMD: AMD64 Architecture Programmer's Manual - Volume 2: System Programming, 16.3 - Local APIC
+                // apic_base address field has fixed width of 40 bits [51:12] (40 + 12 = 52 = architectural limit for physical addresses).
+                uint64_t apic_base     : 40;
+                uint64_t reserved3     : 12;
             };
             struct
             {
@@ -112,6 +117,6 @@ namespace MSR
 
     static_assert(sizeof(IA32_PAT_t) == 8);
 
-    using IA32_APIC_BASE = MSR<MSR_IA32_APIC_BASE, struct IA32_APIC_BASE_t, true, true>;
+    using IA32_APIC_BASE = MSR<MSR_APIC_BASE, struct IA32_APIC_BASE_t, true, true>;
     using IA32_PAT = MSR<MSR_IA32_PAT, struct IA32_PAT_t, true, true>;
 };
