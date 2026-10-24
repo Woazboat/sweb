@@ -72,6 +72,17 @@ void initInterruptControllers()
     debug(A_INTERRUPTS, "Initializing interrupt controllers\n");
     assert(CpuLocalStorage::ClsInitialized());
 
+    if (cpu_features.cpuHasFeature(CpuFeatures::APIC) && PIC8259::exists)
+  {
+    // Switch the CPU interrupt source away from the legacy 8259 PIC and use the APIC instead.
+    // Only required on very old systems which have an actual switch and do not use virtual wire
+    // mode to implement backward compatibility
+    // (virtual wire mode = legacy 8259 PIC is connected via the APIC,
+    //  PIC mode = 8259 PIC is directly connected to the CPU)
+    // Only needs to be done once by the BSP
+    Apic::setIMCRMode(IMCRData::APIC_PASSTHROUGH);
+  }
+
     PlatformBus::instance().registerDriver(ApicDriver::instance());
     PlatformBus::instance().registerDriver(ApicTimerDriver::instance());
     PlatformBus::instance().registerDriver(IoApicDriver::instance());

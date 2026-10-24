@@ -576,7 +576,6 @@ void ApicDriver::cpuLocalInit()
     if (cpu_features.cpuHasFeature(CpuFeatures::APIC))
     {
         debug(APIC, "Init cpu local apic\n");
-        Apic::setIMCRMode(IMCRData::APIC_PASSTHROUGH);
 
         Apic::globalEnable();
         if (X2Apic::x2ApicSupported())
