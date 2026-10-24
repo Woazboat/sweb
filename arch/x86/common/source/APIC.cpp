@@ -79,6 +79,12 @@ bool Apic::isEnabled()
     return siv.enable;
 }
 
+bool Apic::currentProcessorIsBsp()
+{
+    auto apic_base = MSR::IA32_APIC_BASE::read();
+    return apic_base.bsp;
+}
+
 void Apic::initTimer()
 {
     debug(APIC, "Init timer for APIC %x\n", apicId());

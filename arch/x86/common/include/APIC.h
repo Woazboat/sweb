@@ -396,6 +396,8 @@ public:
     void enable(bool = true);
     bool isEnabled();
 
+    static bool currentProcessorIsBsp();
+
     bool mask(irqnum_t irq, bool mask) override;
     bool ack(irqnum_t irq) override;
     bool irqStart(irqnum_t irq) override;
