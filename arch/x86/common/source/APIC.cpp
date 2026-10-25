@@ -57,7 +57,7 @@ void Apic::setIMCRMode(IMCRData mode)
     IMCR_DATA::write(mode);
 }
 
-void Apic::globalEnable(bool enable)
+void Apic::hardEnable(bool enable)
 {
     auto apic_base = MSR::IA32_APIC_BASE::read();
     debug(APIC, "Hard-enabling APIC on processor, previous state: %d\n", apic_base.enable);
@@ -581,13 +581,33 @@ void ApicDriver::doDeviceDetection()
     cpuLocalInit();
 }
 
+#define FORCE_ENABLE_APIC (1)
+
 void ApicDriver::cpuLocalInit()
 {
+    // Check if APIC should exist but has been left disabled by firmware
+    // The CPUID APIC flag reflects the state of the hard-enable flag in the APIC_BASE MSR and is not set if the APIC is hard-disabled
+    if (!cpu_features.cpuHasFeature(CpuFeatures::APIC) &&
+        !cpu_features.cpuFeatureIsForceDisabled(CpuFeatures::APIC) &&
+        (cpu_features.processor_family_id >= 6) && // Hard-enabling APIC at runtime is only supported on Intel P6 or later
+        FORCE_ENABLE_APIC)
+    {
+        debug(APIC, "APIC disabled by firmware, attempting to force-reenable\n");
+        Apic::hardEnable();
+        if (CPUID::haveLocalApic())
+        {
+            debug(APIC, "Successfully force-enabled APIC\n");
+            cpu_features.setFeature(CpuFeatures::APIC, true);
+        }
+        else
+        {
+            debug(APIC, "Failed to force-enable APIC\n");
+        }
+    }
+
     if (cpu_features.cpuHasFeature(CpuFeatures::APIC))
     {
         debug(APIC, "Init cpu local apic\n");
-
-        Apic::globalEnable();
         if (X2Apic::x2ApicSupported())
         {
             X2Apic::enableX2ApicMode();

@@ -391,7 +391,7 @@ public:
     static void setIMCRMode(IMCRData mode);
 
     // Enable bit in the IA32_APIC_BASE MSR
-    static void globalEnable(bool = true);
+    static void hardEnable(bool = true);
     // 'Soft' enable via the enable bit in the APIC spurious interrupt register
     void enable(bool = true);
     bool isEnabled();
