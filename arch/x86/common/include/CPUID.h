@@ -13,6 +13,7 @@ namespace CPUID
 
     uint32_t highestSupportedLeaf();
     uint32_t highestSupportedExtendedLeaf();
+    bool haveLocalApic();
     uint32_t localApicId();
     uint32_t localX2ApicId();
 };
@@ -216,6 +217,7 @@ public:
         FEATURE_COUNT // dummy value to get enum size for bitset
     };
 
+    uint16_t processor_family_id = 0;
     eastl::optional<uint8_t> phy_adr_bits{}; // Number of implemented physical address bits
 
     CpuFeatures();
@@ -224,6 +226,7 @@ public:
     [[nodiscard]] bool cpuHasFeature(X86Feature feature) const;
     [[nodiscard]] bool cpuFeatureIsForceDisabled(X86Feature feature) const;
 
+    void setFeature(X86Feature feature, bool enabled);
     void setFeatureForceDisabled(X86Feature feature);
 private:
     eastl::bitset<X86Feature::FEATURE_COUNT> features_;

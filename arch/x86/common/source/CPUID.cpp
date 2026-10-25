@@ -27,11 +27,20 @@ uint32_t CPUID::highestSupportedExtendedLeaf()
     return eax;
 }
 
+bool CPUID::haveLocalApic()
+{
+    uint32_t unused;
+    uint32_t edx = 0;
+    CPUID::cpuid(0x01, 0, unused, unused, unused, edx);
+    return edx & (1 << 9);
+}
+
 uint32_t CPUID::localApicId()
 {
     uint32_t unused;
     uint32_t ebx = 0;
     cpuid(0x01, 0, unused, ebx, unused, unused);
+
     return ebx >> 24;
 }
 
@@ -58,6 +67,11 @@ bool CpuFeatures::cpuFeatureIsForceDisabled(X86Feature feature) const
     return force_disabled_features_.test(feature);
 }
 
+void CpuFeatures::setFeature(X86Feature feature, bool enabled)
+{
+    features_.set(feature, enabled);
+}
+
 void CpuFeatures::setFeatureForceDisabled(X86Feature feature)
 {
     force_disabled_features_.set(feature);
@@ -76,6 +90,13 @@ void CpuFeatures::initCpuFeatures()
     debug(A_MULTICORE, "CPU manufaturer id: %s, highest cpuid param: %x / %x\n", manufacturer_id, highest_base_cpuid_param, highest_ext_cpuid_param);
 
     CPUID::cpuid(1, 0, eax, ebx, ecx, edx);
+
+    processor_family_id = (eax & (0xF << 8)) >> 8;
+    if (processor_family_id == 15)
+    {
+        processor_family_id += (eax & (0xFF << 20)) >> 20;
+    }
+
 
     features_.set(FPU, edx & (1 << 0));
     features_.set(VME, edx & (1 << 1));
