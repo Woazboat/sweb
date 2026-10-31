@@ -110,8 +110,8 @@ void ArchMulticore::prepareAPStartup(size_t entry_addr)
 
   pointer paddr0 = ArchMemory::getIdentAddressOfPPN(entry_addr/PAGE_SIZE) + (entry_addr % PAGE_SIZE);
   auto m = ArchMemory::kernelArchMemory().resolveMapping(paddr0/PAGE_SIZE);
-  assert(m.page && "Page for application processor entry not mapped in kernel"); // TODO: Map if not present
-  assert((m.page_ppn == entry_addr/PAGE_SIZE) && "PPN in ident mapping doesn't match expected ppn for AP entry");
+  assert(m.page_size && "Page for application processor entry not mapped in kernel"); // TODO: Map if not present
+  assert(((m.page_ppn <= entry_addr/PAGE_SIZE) && (m.page_ppn + m.page_size/PAGE_SIZE > entry_addr/PAGE_SIZE)) && "Ident entry mapping for AP startup page is not mapped to expected physical address");
 
   // Init AP gdt
   debug(A_MULTICORE, "Init AP GDT at %p\n", &ap_gdt32);
@@ -126,12 +126,13 @@ void ArchMulticore::prepareAPStartup(size_t entry_addr)
   // Init AP PML4
   debug(A_MULTICORE, "Init AP PML4\n");
   memcpy(&ap_pml4, &kernel_page_map_level_4, sizeof(ap_pml4));
-  ap_kernel_cr3 = (size_t)VIRTUAL_TO_PHYSICAL_BOOT(kernel_page_map_level_4); // TODO: shouldn't this be ap_pml4?
+  ap_kernel_cr3 = (size_t)VIRTUAL_TO_PHYSICAL_BOOT(ap_pml4);
 
   debug(A_MULTICORE, "Copying apstartup from virt [%p,%p] -> %p (phys: %zx), size: %zx\n", (void*)&apstartup_text_begin, (void*)&apstartup_text_end, (void*)paddr0, (size_t)entry_addr, (size_t)(&apstartup_text_end - &apstartup_text_begin));
   memcpy((void*)paddr0, (void*)&apstartup_text_begin, apstartup_size);
 }
 
+// TODO: move to common code
 void ArchMulticore::startOtherCPUs()
 {
   if(cpu_lapic->isInitialized())

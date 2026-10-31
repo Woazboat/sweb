@@ -40,7 +40,7 @@ extern cpu_local char cpu_stack[CPU_STACK_SIZE];
 extern cpu_local TSS cpu_tss;
 extern cpu_local IdleThread* idle_thread;
 
-constexpr size_t AP_STARTUP_PADDR = 0x00;
+
 
 class Allocator;
 
@@ -64,6 +64,8 @@ class ArchMulticore
     static void initCpuLocalData(bool boot_cpu = false);
 
     static char* cpuStackTop();
+
+    static inline size_t AP_STARTUP_PADDR = 0x1000;
 
   private:
     static void initCpuLocalGDT(GDT& template_gdt);

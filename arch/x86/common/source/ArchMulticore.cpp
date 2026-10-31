@@ -86,13 +86,17 @@ void ArchMulticore::reservePages(Allocator& allocator)
 {
     // Physical pages 0 + 1 are used for AP startup code
     // Technically we could free them after starting all other CPUs, but a lot
-    // of the rest of SWEB treats PPN == 0 as invalid (even though it's a perfectly usable page).
+    // of the rest of SWEB treats PPN == 0 as invalid (even though it's technically a usable page).
     // Therefore we cannot actually free them without causing problems elsewhere.
     // PPN 0 was previously used for the kernel heap and was never returned from allocPPN().
     size_t ap_boot_code_range = allocator.alloc(PAGE_SIZE*2, PAGE_SIZE);
     debug(A_MULTICORE, "Allocated mem for ap boot code: [%zx, %zx)\n",
           ap_boot_code_range, ap_boot_code_range + PAGE_SIZE*2);
-    assert(ap_boot_code_range == 0);
+
+    assert((ap_boot_code_range % PAGE_SIZE) == 0);
+    assert(ap_boot_code_range <= 0xFF000);
+
+    AP_STARTUP_PADDR = ap_boot_code_range;
 }
 
 void ArchMulticore::startAP(uint32_t apic_id, size_t entry_addr)

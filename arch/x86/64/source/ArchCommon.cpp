@@ -690,6 +690,10 @@ void ArchCommon::spinlockPause()
 
 void ArchCommon::reservePagesPreKernelInit(Allocator &alloc)
 {
+    // Addresses 0x0 - 0x500 are used in real mode for the interrupt vector table and the BIOS data area.
+    // Mark the first page as reserved. (PPN 0 is also considered 'invalid' by a lot of SWEB code, even though it can technically be used)
+    alloc.setUnuseable(0, 0x500);
+
     ArchMulticore::reservePages(alloc);
 }
 

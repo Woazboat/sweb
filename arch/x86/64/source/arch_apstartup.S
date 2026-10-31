@@ -57,7 +57,10 @@
 .type   apstartup, @function
 apstartup:
     cli
+    cld
 
+    # CS segment contains AP startup address offset
+    # Use same offset for other segments to make data access relative to CS/position independent
     movw %cs, %ax
     movw %ax, %ds
     movw %ax, %ss
@@ -103,13 +106,29 @@ apstartup:
 
     ap_print (ap_s_ljmp - apstartup)
 
-    ljmp $KERNEL_CS, $(apstartup64_trampoline - apstartup)
+    # Prepare pointer buffer for indirect absolute far jump
+    movl $(apstartup64_trampoline - apstartup), %eax
+    movl %cs, %ecx
+    shll $4, %ecx
+    addl %ecx, %eax # eax = linear address of apstartup64_trampoline
+    movl %eax, (ap_ljmp_addr_buf - apstartup)
+    movw $KERNEL_CS, (ap_ljmp_addr_buf + 4 - apstartup)
+
+    movl $(ap_ljmp_addr_buf - apstartup), %eax
+    ljmpl *(%eax)
     hlt
+
 
 .code64
 .global apstartup64_trampoline
 .type   apstartup64_trampoline, @function
 apstartup64_trampoline:
+    movw $KERNEL_DS, %ax
+    movw %ax, %ds
+    movw %ax, %ss
+    movw %ax, %es
+    movw %ax, %fs
+    movw %ax, %gs
     ap_print64 ap_s_apstartup64
 
 .extern apstartup 64
@@ -144,6 +163,13 @@ ap_s_ljmp:
 .global ap_s_apstartup64
 ap_s_apstartup64:
 	.asciz "Jumping to apstartup64\n"
+
+# pointer buffer for indirect absolute far jump
+.global ap_ljmp_addr_buf
+.type   ap_ljmp_addr_buf, @object
+ap_ljmp_addr_buf:
+    .skip 4 # address
+    .skip 2 # code segment selector
 
 # To be filled in by the BSP
 .global ap_kernel_cr3
