@@ -37,8 +37,8 @@ eastl::atomic<bool> ap_started = false;
 
 extern eastl::atomic<size_t> running_cpus;
 
+extern uint32 ap_kernel_cr3;
 extern GDT32Ptr ap_gdt32_ptr;
-extern GDT ap_gdt32;
 
 extern GDT gdt;
 
@@ -46,15 +46,13 @@ extern char apstartup_text_begin;
 extern char apstartup_text_end;
 extern "C" void apstartup();
 
-extern uint32 ap_kernel_cr3;
-extern char ap_pml4[PAGE_SIZE];
 
 static uint8 ap_boot_stack[PAGE_SIZE];
 
 
-void ArchMulticore::initCpuLocalData(bool boot_cpu)
+void ArchMulticore::initCpuLocalData([[maybe_unused]]bool boot_cpu)
 {
-  initCpuLocalGDT(boot_cpu ? gdt : ap_gdt32);
+  initCpuLocalGDT(gdt);
   initCpuLocalTSS((size_t)ArchMulticore::cpuStackTop());
 
   // The constructor of objects declared as cpu_local will be called automatically the first time the cpu_local object is used. Other cpu_local objects _may or may not_ also be initialized at the same time.
@@ -102,34 +100,20 @@ void ArchMulticore::initialize()
 void ArchMulticore::prepareAPStartup(size_t entry_addr)
 {
   size_t apstartup_size = (size_t)(&apstartup_text_end - &apstartup_text_begin);
-  debug(A_MULTICORE, "apstartup_text_begin: %p, apstartup_text_end: %p, size: %zx\n",
-        &apstartup_text_begin, &apstartup_text_end, apstartup_size);
+    debug(A_MULTICORE, "Copying AP startup code from [%p,%p] -> %p, size: %zx\n",
+    (void*)&apstartup_text_begin, (void*)&apstartup_text_end, (void*)entry_addr, apstartup_size);
 
-  debug(A_MULTICORE, "apstartup %p, phys: %zx\n", &apstartup, (size_t)VIRTUAL_TO_PHYSICAL_BOOT(entry_addr));
+  auto gdt_phys_addr  = (size_t)VIRTUAL_TO_PHYSICAL_BOOT(&gdt);
+  assert(gdt_phys_addr <= 0xFFFFFFFF); // AP startup code requires 32-bit phys GDT address
+  ap_gdt32_ptr.addr = gdt_phys_addr;
+  ap_gdt32_ptr.limit = sizeof(gdt) - 1;
 
+  auto pml4_phys_addr = ArchMemory::kernelArchMemory().getValueForCR3();
+  assert(pml4_phys_addr <= 0xFFFFFFFF); // AP startup code requires 32-bit phys PML4 address
+  ap_kernel_cr3 = pml4_phys_addr;
 
-  pointer paddr0 = ArchMemory::getIdentAddressOfPPN(entry_addr/PAGE_SIZE) + (entry_addr % PAGE_SIZE);
-  auto m = ArchMemory::kernelArchMemory().resolveMapping(paddr0/PAGE_SIZE);
-  assert(m.page_size && "Page for application processor entry not mapped in kernel"); // TODO: Map if not present
-  assert(((m.page_ppn <= entry_addr/PAGE_SIZE) && (m.page_ppn + m.page_size/PAGE_SIZE > entry_addr/PAGE_SIZE)) && "Ident entry mapping for AP startup page is not mapped to expected physical address");
-
-  // Init AP gdt
-  debug(A_MULTICORE, "Init AP GDT at %p\n", &ap_gdt32);
-  auto m_ap_gdt = ArchMemory::kernelArchMemory().resolveMapping(((size_t)&ap_gdt32)/PAGE_SIZE);
-  assert(m_ap_gdt.page && "AP GDT virtual address not mapped in kernel");
-  debug(A_MULTICORE, "AP GDT mapped on ppn %#lx\n", m_ap_gdt.page_ppn);
-
-  memcpy(&ap_gdt32, &gdt, sizeof(ap_gdt32));
-  ap_gdt32_ptr.addr = entry_addr + ((size_t)&ap_gdt32 - (size_t)&apstartup_text_begin);
-  ap_gdt32_ptr.limit = sizeof(ap_gdt32) - 1;
-
-  // Init AP PML4
-  debug(A_MULTICORE, "Init AP PML4\n");
-  memcpy(&ap_pml4, &kernel_page_map_level_4, sizeof(ap_pml4));
-  ap_kernel_cr3 = (size_t)VIRTUAL_TO_PHYSICAL_BOOT(ap_pml4);
-
-  debug(A_MULTICORE, "Copying apstartup from virt [%p,%p] -> %p (phys: %zx), size: %zx\n", (void*)&apstartup_text_begin, (void*)&apstartup_text_end, (void*)paddr0, (size_t)entry_addr, (size_t)(&apstartup_text_end - &apstartup_text_begin));
-  memcpy((void*)paddr0, (void*)&apstartup_text_begin, apstartup_size);
+  // Boot time 1:1 virtual memory mapping for low memory pages still needs to be present as it's required by the AP startup code
+  memcpy((void*)entry_addr, (void*)&apstartup_text_begin, apstartup_size);
 }
 
 // TODO: move to common code
@@ -200,9 +184,6 @@ extern void initCpuLocalInterruptHandlers();
 
 void ArchMulticore::initApplicationProcessorCpu()
 {
-  debug(A_MULTICORE, "AP switching from temp kernel page tables to main kernel page tables: %zx\n", (size_t)ArchMemory::kernelArchMemory().getPagingStructureRootPhys());
-  ArchMemory::loadPagingStructureRoot(ArchMemory::kernelArchMemory().getValueForCR3());
-
   InterruptDescriptorTable::instance().idtr().load();
 
   extern char cls_start;

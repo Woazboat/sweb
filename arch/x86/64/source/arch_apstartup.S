@@ -183,18 +183,4 @@ ap_gdt32_ptr:
     .skip 2	# uint16 limit
     .skip 4	# uint32 addr
 
-.global ap_gdt32
-.type   ap_gdt32, @object
-ap_gdt32:
-    .skip 0x70
-
-
-.align 0x1000
-.global ap_pml4
-.type   ap_pml4, @object
-ap_pml4:
-.skip 0x1000
-
-
-
 .code64
