@@ -1,10 +1,13 @@
+# yaml-language-server: $schema=https://json.schemastore.org/clangd.json
 CompileFlags:
     CompilationDatabase: /tmp/sweb
     Remove: [-fno-sync-libcalls]
+Index:
+  StandardLibrary: false
 Completion:
     AllScopes: true
 Hover:
-    ShowAKA: Yes
+    ShowAKA: true
 Diagnostics:
     ClangTidy:
         Add:
@@ -13,11 +16,22 @@ Diagnostics:
         Remove:
             - modernize-use-trailing-return-type
             - modernize-deprecated-headers
+            - modernize-avoid-c-arrays
             - bugprone-easily-swappable-parameters
             - bugprone-reserved-identifier
-    UnusedIncludes: Strict
+    UnusedIncludes: None
 ---
 If:
     PathMatch: "lib/EASTl/*"
+Diagnostics:
+    Suppress: "*"
+---
+If:
+    PathMatch: "utils/add-debug/dwarf/*"
+Diagnostics:
+    Suppress: "*"
+---
+If:
+    PathMatch: "utils/add-debug/elf/*"
 Diagnostics:
     Suppress: "*"
